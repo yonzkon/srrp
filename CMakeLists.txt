@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.12)
-project(apix)
+project(srrp)
 
 set(CMAKE_MACOSX_RPATH 1)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

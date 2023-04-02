@@ -2,7 +2,7 @@
 #define __SRRP_H
 
 #include <string.h>
-#include "types.h"
+#include "srrp-types.h"
 
 #ifdef __cplusplus
 extern "C" {

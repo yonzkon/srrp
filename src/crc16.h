@@ -1,7 +1,7 @@
 #ifndef _CRC_CRC16_H
 #define _CRC_CRC16_H
 
-#include "types.h"
+#include "srrp-types.h"
 
 #ifdef __cplusplus
 extern "C" {
