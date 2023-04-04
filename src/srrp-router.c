@@ -376,8 +376,8 @@ void srrpr_drop(struct srrp_router *router)
     free(router);
 }
 
-void srrpr_add_listener(struct srrp_router *router, struct cio_listener *listener,
-                        int owned, unsigned int nodeid)
+void srrpr_add_listener(
+    struct srrp_router *router, struct cio_listener *listener, int owned, u32 nodeid)
 {
     struct srrp_listener *sl = srrp_listener_new(router, listener, owned, nodeid);
     cio_register(router->ctx, cio_listener_get_raw(listener),
@@ -385,8 +385,8 @@ void srrpr_add_listener(struct srrp_router *router, struct cio_listener *listene
     list_add(&sl->ln, &router->listeners);
 }
 
-void srrpr_add_stream(struct srrp_router *router, struct cio_stream *stream,
-                      int owned, unsigned int nodeid)
+void srrpr_add_stream(
+    struct srrp_router *router, struct cio_stream *stream, int owned, u32 nodeid)
 {
     struct srrp_stream *ss = srrp_stream_new(router, stream, owned, nodeid);
     cio_register(router->ctx, cio_stream_get_raw(stream),
@@ -641,6 +641,22 @@ static void clear_finished_message(struct srrp_router *router)
     }
 }
 
+static void srrpr_sync(struct srrp_router *router)
+{
+    struct srrp_stream *ss;
+    list_for_each_entry(ss, &router->streams, ln) {
+        // sync
+        if (ss->ts_sync_out + (STREAM_SYNC_TIMEOUT / 1000) < time(0)) {
+            srrp_stream_sync_nodeid(ss);
+        }
+
+        // parse rxbuf to srrp_packet
+        if (vsize(ss->rxbuf)) {
+            srrp_stream_parse_packet(ss);
+        }
+    }
+}
+
 static void srrpr_poll(struct srrp_router *router)
 {
     assert(cio_poll(router->ctx, 0) == 0);
@@ -691,19 +707,6 @@ static void srrpr_poll(struct srrp_router *router)
 
 static void srrpr_deal(struct srrp_router *router)
 {
-    struct srrp_stream *ss;
-    list_for_each_entry(ss, &router->streams, ln) {
-        // sync
-        if (ss->ts_sync_out + (STREAM_SYNC_TIMEOUT / 1000) < time(0)) {
-            srrp_stream_sync_nodeid(ss);
-        }
-
-        // parse rxbuf to srrp_packet
-        if (vsize(ss->rxbuf)) {
-            srrp_stream_parse_packet(ss);
-        }
-    }
-
     if (!list_empty(&router->msgs)) {
         handle_message(router);
         clear_finished_message(router);
@@ -712,6 +715,7 @@ static void srrpr_deal(struct srrp_router *router)
 
 int srrpr_wait(struct srrp_router *router)
 {
+    srrpr_sync(router);
     srrpr_poll(router);
     srrpr_deal(router);
 
@@ -765,4 +769,40 @@ int srrpr_send(struct srrp_router *router, struct srrp_packet *pac)
     }
 
     return retval;
+}
+
+/**
+ * srrp_connect
+ */
+
+struct srrp_connect *srrpc_new(struct cio_stream *stream, int owned, u32 nodeid)
+{
+    struct srrp_router *router = srrpr_new();
+    srrpr_add_stream(router, stream, owned, nodeid);
+    return (struct srrp_connect *)router;
+}
+
+void srrpc_drop(struct srrp_connect *conn)
+{
+    srrpr_drop((struct srrp_router *)conn);
+}
+
+int srrpc_wait(struct srrp_connect *conn)
+{
+    return srrpr_wait((struct srrp_router *)conn);
+}
+
+struct srrp_packet *srrpc_iter(struct srrp_connect *conn)
+{
+    return srrpr_iter((struct srrp_router *)conn);
+}
+
+int srrpc_send(struct srrp_connect *conn, struct srrp_packet *pac)
+{
+    struct srrp_router *router = (struct srrp_router *)conn;
+    assert(!list_empty(&router->streams));
+    assert(router->streams.next == router->streams.prev);
+    struct srrp_stream *ss = container_of(router->streams.next, struct srrp_stream, ln);
+    srrp_stream_send(ss, pac);
+    return 0;
 }

@@ -2,6 +2,7 @@
 #define __SRRP_ROUTER_H
 
 #include <cio-stream.h>
+#include "srrp-types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -12,10 +13,10 @@ struct srrp_router;
 struct srrp_router *srrpr_new();
 void srrpr_drop(struct srrp_router *router);
 
-void srrpr_add_listener(struct srrp_router *router, struct cio_listener *listener,
-                        int owned, unsigned int nodeid);
-void srrpr_add_stream(struct srrp_router *router, struct cio_stream *stream,
-                      int owned, unsigned int nodeid);
+void srrpr_add_listener(
+    struct srrp_router *router, struct cio_listener *listener, int owned, u32 nodeid);
+void srrpr_add_stream(
+    struct srrp_router *router, struct cio_stream *stream, int owned, u32 nodeid);
 
 int srrpr_wait(struct srrp_router *router);
 struct srrp_packet *srrpr_iter(struct srrp_router *router);

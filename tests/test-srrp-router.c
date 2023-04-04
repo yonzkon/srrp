@@ -14,14 +14,15 @@
 #include <arpa/inet.h>
 #include "srrp.h"
 #include "srrp-router.h"
+#include "srrp-connect.h"
 #include "srrp-log.h"
 #include "crc16.h"
 
 #define UNIX_ADDR "./test_unix"
 #define TCP_ADDR "127.0.0.1:1224"
 
-//const char *PAYLOAD = "t:hello";
-const char *PAYLOAD =
+const char *PAYLOAD = "t:hello";
+const char *PAYLOAD2 =
     "t:0xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
     "1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
     "2xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
@@ -79,16 +80,11 @@ static void *requester_thread(void *args)
 
     struct cio_stream *unix_stream = unix_stream_connect(UNIX_ADDR);
     assert_true(unix_stream);
-    if (!unix_stream) {
-        perror("unix_stream_connect");
-        exit(-1);
-    }
 
-    struct srrp_router *router = srrpr_new();
-    srrpr_add_stream(router, unix_stream, 1, 0x3333);
+   struct srrp_connect *conn = srrpc_new(unix_stream, 1, 0x3333);
 
     struct srrp_packet *pac = srrp_new_request(0x3333, 0x8888, "/hello", PAYLOAD);
-    int rc = cio_stream_send(unix_stream, srrp_get_raw(pac), srrp_get_packet_len(pac));
+    int rc = srrpc_send(conn, pac);
     assert_true(rc != -1);
     srrp_free(pac);
 
@@ -96,11 +92,11 @@ static void *requester_thread(void *args)
         if (requester_finished)
             break;
 
-        if (srrpr_wait(router) == 0)
+        if (srrpc_wait(conn) == 0)
             continue;
 
         for (;;) {
-            struct srrp_packet *pac = srrpr_iter(router);
+            struct srrp_packet *pac = srrpc_iter(conn);
             if (!pac) break;
             if (srrp_get_leader(pac) == SRRP_RESPONSE_LEADER) {
                 LOG_INFO("requester on response: %s", srrp_get_raw(pac));
@@ -112,7 +108,7 @@ static void *requester_thread(void *args)
 
     sleep(1);
 
-    srrpr_drop(router);
+    srrpc_drop(conn);
     LOG_INFO("requester exit");
     return NULL;
 }
@@ -135,7 +131,7 @@ static void *responser_thread(void *args)
     srrpr_add_listener(router, unix_listener, 1, 0x8888);
 
     for (;;) {
-        if (responser_finished)
+        if (responser_finished && requester_finished)
             break;
 
         if (srrpr_wait(router) == 0)
@@ -176,7 +172,7 @@ static void *responser_thread(void *args)
 
 static void test_api_request_response(void **status)
 {
-    log_set_level(LOG_LV_DEBUG);
+    log_set_level(LOG_LV_TRACE);
 
     pthread_t responser_pid;
     pthread_create(&responser_pid, NULL, responser_thread, NULL);
@@ -184,7 +180,7 @@ static void test_api_request_response(void **status)
     pthread_create(&requester_pid, NULL, requester_thread, NULL);
 
     for (;;) {
-        LOG_INFO("req: %d, resp: %d", requester_finished, responser_finished);
+        LOG_INFO("req state:%d, resp state:%d", requester_finished, responser_finished);
         if (requester_finished && responser_finished)
             break;
         else
@@ -255,16 +251,12 @@ static int subscribe_finished = 0;
 static void *subscribe_thread(void *args)
 {
     struct cio_stream *tcp_stream = tcp_stream_connect(TCP_ADDR);
-    if (!tcp_stream) {
-        perror("tcp_stream_connect");
-        exit(-1);
-    }
+    assert_true(tcp_stream);
 
-    struct srrp_router *router = srrpr_new();
-    srrpr_add_stream(router, tcp_stream, 1, 0x6666);
+    struct srrp_connect *conn = srrpc_new(tcp_stream, 1, 0x6666);
 
     struct srrp_packet *pac_sub = srrp_new_subscribe("/test-topic", "{}");
-    int rc = srrpr_send(router, pac_sub);
+    int rc = srrpc_send(conn, pac_sub);
     assert_true(rc != -1);
     srrp_free(pac_sub);
 
@@ -272,11 +264,11 @@ static void *subscribe_thread(void *args)
         if (subscribe_finished)
             break;
 
-        if (srrpr_wait(router) == 0)
+        if (srrpc_wait(conn) == 0)
             continue;
 
         for (;;) {
-            struct srrp_packet *pac = srrpr_iter(router);
+            struct srrp_packet *pac = srrpc_iter(conn);
             if (!pac) break;
             if (srrp_get_leader(pac) == SRRP_PUBLISH_LEADER) {
                 LOG_INFO("sub recv: %s", srrp_get_raw(pac));
@@ -287,13 +279,13 @@ static void *subscribe_thread(void *args)
     }
 
     struct srrp_packet *pac_unsub = srrp_new_unsubscribe("/test-topic", "{}");
-    rc = srrpr_send(router, pac_unsub);
+    rc = srrpc_send(conn, pac_unsub);
     assert_true(rc != -1);
     srrp_free(pac_unsub);
 
     sleep(1);
 
-    srrpr_drop(router);
+    srrpc_drop(conn);
     LOG_INFO("subscribe exit");
     return NULL;
 }
