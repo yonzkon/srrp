@@ -1,5 +1,5 @@
-#ifndef __TYPES_H
-#define __TYPES_H
+#ifndef __SRRP_TYPES_H
+#define __SRRP_TYPES_H
 
 #include <stdint.h>
 

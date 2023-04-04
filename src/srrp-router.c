@@ -310,7 +310,7 @@ static void srrp_stream_send_response(
  * srrp_listener
  */
 
-struct srrp_listener *srrp_listener_new(
+static struct srrp_listener *srrp_listener_new(
     struct srrp_router *router, struct cio_listener *listener, int owned, u32 l_nodeid)
 {
     struct srrp_listener *sl = malloc(sizeof(*sl));
@@ -324,7 +324,7 @@ struct srrp_listener *srrp_listener_new(
     return sl;
 }
 
-void srrp_listener_drop(struct srrp_listener *sl)
+static void srrp_listener_drop(struct srrp_listener *sl)
 {
     if (sl->owned) {
         cio_listener_drop(sl->listener);

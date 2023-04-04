@@ -5,6 +5,7 @@
 #include <cmocka.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -19,8 +20,8 @@
 #define UNIX_ADDR "./test_unix"
 #define TCP_ADDR "127.0.0.1:1224"
 
-const char *PAYLOAD = "t:hello";
-const char *PAYLOAD2 =
+//const char *PAYLOAD = "t:hello";
+const char *PAYLOAD =
     "t:0xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
     "1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
     "2xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
@@ -74,17 +75,20 @@ static int requester_finished = 0;
 
 static void *requester_thread(void *args)
 {
-    struct apix *ctx = apix_new();
-    LOG_INFO("requester ctx: %x", ctx);
-    apix_enable_posix(ctx);
-    struct stream *stream = apix_open_unix_client(ctx, UNIX_ADDR);
-    assert_true(stream);
-    apix_upgrade_to_srrp(stream, 0x3333);
-
     sleep(1);
 
+    struct cio_stream *unix_stream = unix_stream_connect(UNIX_ADDR);
+    assert_true(unix_stream);
+    if (!unix_stream) {
+        perror("unix_stream_connect");
+        exit(-1);
+    }
+
+    struct srrp_router *router = srrpr_new();
+    srrpr_add_stream(router, unix_stream, 1, 0x3333);
+
     struct srrp_packet *pac = srrp_new_request(0x3333, 0x8888, "/hello", PAYLOAD);
-    int rc = apix_srrp_send(stream, pac);
+    int rc = cio_stream_send(unix_stream, srrp_get_raw(pac), srrp_get_packet_len(pac));
     assert_true(rc != -1);
     srrp_free(pac);
 
@@ -92,34 +96,23 @@ static void *requester_thread(void *args)
         if (requester_finished)
             break;
 
-        struct stream *stream = apix_waiting(ctx, 100 * 1000);
-        if (stream == NULL) continue;
+        if (srrpr_wait(router) == 0)
+            continue;
 
-        switch (apix_incoming(stream)) {
-        case AEC_OPEN:
-            LOG_INFO("#%d open", apix_raw_fd(stream));
-            break;
-        case AEC_CLOSE:
-            LOG_INFO("#%d close", apix_raw_fd(stream));
-            break;
-        case AEC_SRRP_PACKET: {
-            struct srrp_packet *pac = apix_fetch_srrp_packet(stream);
-            assert_true(pac);
-            assert_true(srrp_get_leader(pac) == SRRP_RESPONSE_LEADER);
-            LOG_INFO("requester on response: %s", srrp_get_raw(pac));
-            requester_finished = 1;
-            break;
-        }
-        default:
-            break;
+        for (;;) {
+            struct srrp_packet *pac = srrpr_iter(router);
+            if (!pac) break;
+            if (srrp_get_leader(pac) == SRRP_RESPONSE_LEADER) {
+                LOG_INFO("requester on response: %s", srrp_get_raw(pac));
+                requester_finished = 1;
+                break;
+            }
         }
     }
 
     sleep(1);
 
-    apix_close(stream);
-    apix_drop(ctx);
-
+    srrpr_drop(router);
     LOG_INFO("requester exit");
     return NULL;
 }
@@ -132,30 +125,26 @@ static int responser_finished = 0;
 
 static void *responser_thread(void *args)
 {
-    struct apix *ctx = apix_new();
-    LOG_INFO("responser ctx: %x", ctx);
-    apix_enable_posix(ctx);
-    struct stream *stream = apix_open_unix_client(ctx, UNIX_ADDR);
-    assert_true(stream);
-    apix_upgrade_to_srrp(stream, 0x8888);
+    struct cio_listener *unix_listener = unix_listener_bind(UNIX_ADDR);
+    if (!unix_listener) {
+        perror("unix_listener_bind");
+        exit(-1);
+    }
+
+    struct srrp_router *router = srrpr_new();
+    srrpr_add_listener(router, unix_listener, 1, 0x8888);
 
     for (;;) {
         if (responser_finished)
             break;
 
-        struct stream *stream = apix_waiting(ctx, 100 * 1000);
-        if (stream == NULL) continue;
+        if (srrpr_wait(router) == 0)
+            continue;
 
-        switch (apix_incoming(stream)) {
-        case AEC_OPEN:
-            LOG_INFO("#%d open", apix_raw_fd(stream));
-            break;
-        case AEC_CLOSE:
-            LOG_INFO("#%d close", apix_raw_fd(stream));
-            break;
-        case AEC_SRRP_PACKET: {
-            struct srrp_packet *pac = apix_fetch_srrp_packet(stream);
-            assert_true(pac);
+        for (;;) {
+            struct srrp_packet *pac = srrpr_iter(router);
+            if (!pac) break;
+
             if (srrp_get_leader(pac) == SRRP_REQUEST_LEADER) {
                 LOG_INFO("responser on request: %s", srrp_get_raw(pac));
                 if (strstr(srrp_get_anchor(pac), "/hello") != 0) {
@@ -163,25 +152,20 @@ static void *responser_thread(void *args)
                     struct srrp_packet *resp = srrp_new_response(
                         srrp_get_dstid(pac), srrp_get_srcid(pac), srrp_get_anchor(pac),
                         "j:{err:0,errmsg:'succ',data:{msg:'world'}}");
-                    apix_send(stream, srrp_get_raw(resp), srrp_get_packet_len(resp));
+                    srrpr_send(router, resp);
                     srrp_free(resp);
                     responser_finished = 1;
+                    break;
                 }
             } else if (srrp_get_leader(pac) == SRRP_RESPONSE_LEADER) {
                 LOG_INFO("responser on response: %s", srrp_get_raw(pac));
             }
-            break;
-        }
-        default:
-            break;
         }
     }
 
     sleep(1);
 
-    apix_close(stream);
-    apix_drop(ctx);
-
+    srrpr_drop(router);
     LOG_INFO("responser exit");
     return NULL;
 }
@@ -194,54 +178,21 @@ static void test_api_request_response(void **status)
 {
     log_set_level(LOG_LV_DEBUG);
 
-    struct apix *ctx = apix_new();
-    LOG_INFO("broker ctx: %x", ctx);
-    apix_enable_posix(ctx);
-    struct stream *server = apix_open_unix_server(ctx, UNIX_ADDR);
-    assert_true(server);
-    apix_upgrade_to_srrp(server, 0x1);
-
     pthread_t responser_pid;
     pthread_create(&responser_pid, NULL, responser_thread, NULL);
     pthread_t requester_pid;
     pthread_create(&requester_pid, NULL, requester_thread, NULL);
 
     for (;;) {
+        LOG_INFO("req: %d, resp: %d", requester_finished, responser_finished);
         if (requester_finished && responser_finished)
             break;
-
-        struct stream *stream = apix_waiting(ctx, 100 * 1000);
-        if (stream == NULL) continue;
-
-        switch (apix_incoming(stream)) {
-        case AEC_OPEN:
-            LOG_INFO("#%d open", apix_raw_fd(stream));
-            break;
-        case AEC_CLOSE:
-            LOG_INFO("#%d close", apix_raw_fd(stream));
-            break;
-        case AEC_ACCEPT: {
-            struct stream * new_stream = apix_accept(stream);
-            LOG_INFO("#%d accept #%d", apix_raw_fd(stream), apix_raw_fd(new_stream));
-            break;
-        }
-        case AEC_SRRP_PACKET: {
-            struct srrp_packet *pac = apix_fetch_srrp_packet(stream);
-            assert_true(pac);
-            apix_srrp_forward(stream, pac);
-            LOG_INFO("#%d forward packet: %s", apix_raw_fd(stream), srrp_get_raw(pac));
-            break;
-        }
-        default:
-            break;
-        }
+        else
+            sleep(1);
     }
 
     pthread_join(requester_pid, NULL);
     pthread_join(responser_pid, NULL);
-
-    apix_close(server);
-    apix_drop(ctx);
 }
 
 /**
@@ -303,17 +254,17 @@ static int subscribe_finished = 0;
 
 static void *subscribe_thread(void *args)
 {
-    struct apix *ctx = apix_new();
-    LOG_INFO("sub ctx: %x", ctx);
-    apix_enable_posix(ctx);
-    struct stream *stream = apix_open_tcp_client(ctx, TCP_ADDR);
-    assert_true(stream);
-    apix_upgrade_to_srrp(stream, 0x6666);
+    struct cio_stream *tcp_stream = tcp_stream_connect(TCP_ADDR);
+    if (!tcp_stream) {
+        perror("tcp_stream_connect");
+        exit(-1);
+    }
 
-    int rc = 0;
+    struct srrp_router *router = srrpr_new();
+    srrpr_add_stream(router, tcp_stream, 1, 0x6666);
 
     struct srrp_packet *pac_sub = srrp_new_subscribe("/test-topic", "{}");
-    rc = apix_srrp_send(stream, pac_sub);
+    int rc = srrpr_send(router, pac_sub);
     assert_true(rc != -1);
     srrp_free(pac_sub);
 
@@ -321,41 +272,28 @@ static void *subscribe_thread(void *args)
         if (subscribe_finished)
             break;
 
-        struct stream *stream = apix_waiting(ctx, 100 * 1000);
-        if (stream == NULL) continue;
+        if (srrpr_wait(router) == 0)
+            continue;
 
-        switch (apix_incoming(stream)) {
-        case AEC_OPEN:
-            LOG_INFO("#%d open", apix_raw_fd(stream));
-            break;
-        case AEC_CLOSE:
-            LOG_INFO("#%d close", apix_raw_fd(stream));
-            break;
-        case AEC_SRRP_PACKET: {
-            struct srrp_packet *pac = apix_fetch_srrp_packet(stream);
-            assert_true(pac);
+        for (;;) {
+            struct srrp_packet *pac = srrpr_iter(router);
+            if (!pac) break;
             if (srrp_get_leader(pac) == SRRP_PUBLISH_LEADER) {
+                LOG_INFO("sub recv: %s", srrp_get_raw(pac));
                 subscribe_finished = 1;
+                break;
             }
-            LOG_INFO("sub recv: %s", srrp_get_raw(pac));
-            break;
-        }
-        default:
-            break;
         }
     }
 
     struct srrp_packet *pac_unsub = srrp_new_unsubscribe("/test-topic", "{}");
-    rc = apix_srrp_send(stream, pac_unsub);
+    rc = srrpr_send(router, pac_unsub);
     assert_true(rc != -1);
     srrp_free(pac_unsub);
 
     sleep(1);
 
-    apix_close(stream);
-    apix_drop(ctx);
-
-    subscribe_finished = 1;
+    srrpr_drop(router);
     LOG_INFO("subscribe exit");
     return NULL;
 }
@@ -368,12 +306,14 @@ static void test_api_subscribe_publish(void **status)
 {
     log_set_level(LOG_LV_DEBUG);
 
-    struct apix *ctx = apix_new();
-    LOG_INFO("broker ctx: %x", ctx);
-    apix_enable_posix(ctx);
-    struct stream *server = apix_open_tcp_server(ctx, TCP_ADDR);
-    assert_true(server);
-    apix_upgrade_to_srrp(server, 0x1);
+    struct cio_listener *tcp_listener = tcp_listener_bind(TCP_ADDR);
+    if (!tcp_listener) {
+        perror("tcp_listener_bind");
+        exit(-1);
+    }
+
+    struct srrp_router *router = srrpr_new();
+    srrpr_add_listener(router, tcp_listener, 1, 0x1);
 
     pthread_t subscribe_pid;
     pthread_create(&subscribe_pid, NULL, subscribe_thread, NULL);
@@ -384,38 +324,22 @@ static void test_api_subscribe_publish(void **status)
         if (publish_finished && subscribe_finished)
             break;
 
-        struct stream *stream = apix_waiting(ctx, 100 * 1000);
-        if (stream == NULL) continue;
+        if (srrpr_wait(router) == 0)
+            continue;
 
-        switch (apix_incoming(stream)) {
-        case AEC_OPEN:
-            LOG_INFO("#%d open", apix_raw_fd(stream));
-            break;
-        case AEC_CLOSE:
-            LOG_INFO("#%d close", apix_raw_fd(stream));
-            break;
-        case AEC_ACCEPT: {
-            struct stream *new_stream = apix_accept(stream);
-            LOG_INFO("#%d accept #%d", apix_raw_fd(stream), apix_raw_fd(new_stream));
-            break;
-        }
-        case AEC_SRRP_PACKET: {
-            struct srrp_packet *pac = apix_fetch_srrp_packet(stream);
-            assert_true(pac);
-            apix_srrp_forward(stream, pac);
-            LOG_INFO("#%d forward packet: %s", apix_raw_fd(stream), srrp_get_raw(pac));
-            break;
-        }
-        default:
-            break;
+        for (;;) {
+            struct srrp_packet *pac = srrpr_iter(router);
+            if (!pac) break;
+
+            srrpr_forward(router, pac);
+            LOG_INFO("forward packet: %s", srrp_get_raw(pac));
         }
     }
 
     pthread_join(publish_pid, NULL);
     pthread_join(subscribe_pid, NULL);
 
-    apix_close(server);
-    apix_drop(ctx);
+    srrpr_drop(router);
 }
 
 int main(void)
