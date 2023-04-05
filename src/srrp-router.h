@@ -18,7 +18,7 @@ void srrpr_add_listener(
 void srrpr_add_stream(
     struct srrp_router *router, struct cio_stream *stream, int owned, u32 nodeid);
 
-int srrpr_wait(struct srrp_router *router);
+int srrpr_wait(struct srrp_router *router, u64 usec);
 struct srrp_packet *srrpr_iter(struct srrp_router *router);
 int srrpr_send(struct srrp_router *router, struct srrp_packet *pac);
 int srrpr_forward(struct srrp_router *router, struct srrp_packet *pac);

@@ -1,5 +1,5 @@
 use std::sync::Mutex;
-use log::{info};
+use log::{info, debug};
 use clap::Parser;
 
 static EXIT_FLAG: Mutex<i32> = Mutex::new(0);
@@ -60,15 +60,14 @@ fn main() {
             break;
         }
 
-        if router.wait() == 0 {
+        if router.wait(10 * 1000) == 0 {
             std::thread::sleep(std::time::Duration::from_millis(10));
             continue;
         }
 
         while let Some(pac) = router.iter() {
             if pac.dstid == 0xf1 || pac.dstid == 0xf2 {
-                info!("srrp_packet: srcid:{}, dstid:{}, {}?{}",
-                       pac.srcid, pac.dstid, pac.anchor, pac.payload);
+                debug!("serv srrp:{}", std::str::from_utf8(&pac.raw).unwrap());
                 let resp = srrp::Srrp::new_response(
                     pac.dstid, pac.srcid, &pac.anchor,
                     "j:{\"err\":404,\"msg\":\"Service not found\"}")
@@ -77,7 +76,7 @@ fn main() {
                        resp.srcid, resp.dstid, resp.anchor, resp.payload);
                 router.send(&resp);
             } else {
-                info!("srrp_packet: {}?{}", pac.anchor, pac.payload);
+                debug!("forward srrp:{}", std::str::from_utf8(&pac.raw).unwrap());
                 router.forward(&pac);
             }
         }

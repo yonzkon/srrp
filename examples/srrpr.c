@@ -64,8 +64,7 @@ int main(int argc, char *argv[])
     for (;;) {
         if (exit_flag == 1) break;
 
-        if (srrpr_wait(router) == 0) {
-            usleep(10 * 1000);
+        if (srrpr_wait(router, 10 * 1000) == 0) {
             continue;
         }
 

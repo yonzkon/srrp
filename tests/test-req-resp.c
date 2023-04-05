@@ -92,7 +92,7 @@ static void *requester_thread(void *args)
         if (requester_finished)
             break;
 
-        if (srrpc_wait(conn) == 0)
+        if (srrpc_wait(conn, 100 * 1000) == 0)
             continue;
 
         for (;;) {
@@ -134,7 +134,7 @@ static void *responser_thread(void *args)
         if (responser_finished && requester_finished)
             break;
 
-        if (srrpr_wait(router) == 0)
+        if (srrpr_wait(router, 100 * 1000) == 0)
             continue;
 
         for (;;) {

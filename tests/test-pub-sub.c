@@ -94,7 +94,7 @@ static void *subscribe_thread(void *args)
         if (subscribe_finished)
             break;
 
-        if (srrpc_wait(conn) == 0)
+        if (srrpc_wait(conn, 100 * 1000) == 0)
             continue;
 
         for (;;) {
@@ -146,7 +146,7 @@ static void test_pub_sub(void **status)
         if (publish_finished && subscribe_finished)
             break;
 
-        if (srrpr_wait(router) == 0)
+        if (srrpr_wait(router, 100 * 1000) == 0)
             continue;
 
         for (;;) {

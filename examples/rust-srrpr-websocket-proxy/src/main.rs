@@ -1,4 +1,4 @@
-use log::{info, debug, warn};
+use log::{debug, warn};
 use clap::Parser;
 use std::net::TcpListener;
 use std::thread::spawn;
@@ -85,14 +85,12 @@ fn main() {
                     Err(_) => ()
                 }
 
-                if conn.wait() == 0 {
-                    std::thread::sleep(std::time::Duration::from_millis(100));
+                if conn.wait(10 * 1000) == 0 {
                     continue;
                 }
 
                 while let Some(pac) = conn.iter() {
-                    info!("srrp_packet: srcid:{}, dstid:{}, {}?{}",
-                          pac.srcid, pac.dstid, pac.anchor, pac.payload);
+                    debug!("recv srrp:{}", std::str::from_utf8(&pac.raw).unwrap());
                     let mut payload = json::JsonValue::from("");
                     if &pac.payload[0..2] == "j:" {
                         if let Ok(j) = json::parse(&pac.payload[2..]) {
@@ -102,6 +100,7 @@ fn main() {
                         payload = json::JsonValue::from(&pac.payload[2..]);
                     }
                     let tmp = json::object!{
+                        leader: pac.leader,
                         srcid: pac.srcid,
                         dstid: pac.dstid,
                         anchor: pac.anchor[0..],

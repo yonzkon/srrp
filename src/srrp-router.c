@@ -657,9 +657,9 @@ static void srrpr_sync(struct srrp_router *router)
     }
 }
 
-static void srrpr_poll(struct srrp_router *router)
+static void srrpr_poll(struct srrp_router *router, u64 usec)
 {
-    assert(cio_poll(router->ctx, 0) == 0);
+    assert(cio_poll(router->ctx, usec) == 0);
     for (;;) {
         struct cio_event *ev = cio_iter(router->ctx);
         if (!ev) break;
@@ -718,10 +718,10 @@ static void srrpr_deal(struct srrp_router *router)
     }
 }
 
-int srrpr_wait(struct srrp_router *router)
+int srrpr_wait(struct srrp_router *router, u64 usec)
 {
     srrpr_sync(router);
-    srrpr_poll(router);
+    srrpr_poll(router, usec);
     srrpr_deal(router);
 
     if (list_empty(&router->msgs)) {
@@ -792,9 +792,9 @@ void srrpc_drop(struct srrp_connect *conn)
     srrpr_drop((struct srrp_router *)conn);
 }
 
-int srrpc_wait(struct srrp_connect *conn)
+int srrpc_wait(struct srrp_connect *conn, u64 usec)
 {
-    return srrpr_wait((struct srrp_router *)conn);
+    return srrpr_wait((struct srrp_router *)conn, usec);
 }
 
 struct srrp_packet *srrpc_iter(struct srrp_connect *conn)

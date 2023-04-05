@@ -59,8 +59,8 @@ impl SrrpConnect {
         }
     }
 
-    pub fn wait(&self) -> i32 {
-        unsafe { return srrp_sys::srrpc_wait(self.conn); }
+    pub fn wait(&self, usec: u64) -> i32 {
+        unsafe { return srrp_sys::srrpc_wait(self.conn, usec); }
     }
 
     pub fn iter(&self) -> Option<SrrpPacket> {
@@ -132,8 +132,8 @@ impl SrrpRouter {
     }
 
 
-    pub fn wait(&self) -> i32 {
-        unsafe { return srrp_sys::srrpr_wait(self.router); }
+    pub fn wait(&self, usec: u64) -> i32 {
+        unsafe { return srrp_sys::srrpr_wait(self.router, usec); }
     }
 
     pub fn iter(&self) -> Option<SrrpPacket> {
