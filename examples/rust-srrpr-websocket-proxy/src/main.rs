@@ -1,4 +1,4 @@
-use log::{info, warn};
+use log::{info, debug, warn};
 use clap::Parser;
 use std::net::TcpListener;
 use std::thread::spawn;
@@ -57,6 +57,7 @@ fn main() {
                 match ws.read_message() {
                     Ok(msg) => {
                         if msg.is_text() {
+                            debug!("{}", msg.to_text().unwrap());
                             if let Ok(jdata) = json::parse(&msg.into_text().unwrap().to_string()) {
                                 if jdata["leader"].as_str() != None &&
                                     jdata["leader"].as_str().unwrap().chars().next() != None &&
@@ -70,6 +71,12 @@ fn main() {
                                         jdata["anchor"].as_str().unwrap(),
                                         jdata["payload"].as_str().unwrap()) {
                                         conn.send(&pac);
+                                    } else {
+                                        match ws.write_message(Message::Text(
+                                            "Format Error".to_string())) {
+                                            Ok(_) => (),
+                                            Err(e) => { warn!("write message:{}", e); }
+                                        };
                                     }
                                 }
                             }
@@ -86,8 +93,21 @@ fn main() {
                 while let Some(pac) = conn.iter() {
                     info!("srrp_packet: srcid:{}, dstid:{}, {}?{}",
                           pac.srcid, pac.dstid, pac.anchor, pac.payload);
-                    match ws.write_message(Message::Text(std::str::from_utf8(
-                        &pac.raw[0..pac.packet_len as usize - 6]).unwrap().to_string())) {
+                    let mut payload = json::JsonValue::from("");
+                    if &pac.payload[0..2] == "j:" {
+                        if let Ok(j) = json::parse(&pac.payload[2..]) {
+                            payload = j;
+                        }
+                    } else if &pac.payload[0..2] == "t:" {
+                        payload = json::JsonValue::from(&pac.payload[2..]);
+                    }
+                    let tmp = json::object!{
+                        srcid: pac.srcid,
+                        dstid: pac.dstid,
+                        anchor: pac.anchor[0..],
+                        payload: payload,
+                    };
+                    match ws.write_message(Message::Text(tmp.dump())) {
                         Ok(_) => (),
                         Err(e) => { warn!("write message:{}", e); }
                     }
