@@ -2,7 +2,7 @@ use std::sync::Mutex;
 use log::{info};
 use clap::Parser;
 
-static EXIT_FLANG: Mutex<i32> = Mutex::new(0);
+static EXIT_FLAG: Mutex<i32> = Mutex::new(0);
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -51,12 +51,12 @@ fn main() {
 
     // signal
     ctrlc::set_handler(move || {
-        *EXIT_FLANG.lock().unwrap() = 1;
+        *EXIT_FLAG.lock().unwrap() = 1;
     }).expect("Error setting Ctrl-C handler");
 
     // main loop
     loop {
-        if *EXIT_FLANG.lock().unwrap() == 1 {
+        if *EXIT_FLAG.lock().unwrap() == 1 {
             break;
         }
 

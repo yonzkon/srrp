@@ -25,7 +25,7 @@ static struct opt opttab[] = {
     INIT_OPT_BOOL("-h", "help", false, "print this usage"),
     INIT_OPT_BOOL("-D", "debug", false, "enable debug [defaut: false]"),
     INIT_OPT_BOOL("-r", "srrp_mode", true, "enable srrp mode [defaut: true]"),
-    INIT_OPT_STRING("-u:", "unix", "/tmp/apix", "unix socket addr"),
+    INIT_OPT_STRING("-u:", "unix", "/tmp/srrp", "unix socket addr"),
     INIT_OPT_STRING("-t:", "tcp", "127.0.0.1:3824", "tcp socket addr"),
     INIT_OPT_NONE(),
 };

@@ -1,0 +1,98 @@
+use log::{info, warn};
+use clap::Parser;
+use std::net::TcpListener;
+use std::thread::spawn;
+use tungstenite::accept;
+use tungstenite::protocol::Message;
+
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    #[arg(short, long, action = clap::ArgAction::Count)]
+    debug: u8,
+}
+
+fn main() {
+    // parse args
+    let args = Args::parse();
+    match args.debug {
+        0 => {
+            std::env::set_var("RUST_LOG", "info");
+            srrp::log_set_level(srrp::LogLevel::Info);
+            println!("Debug mode is off");
+        }
+        1 => {
+            std::env::set_var("RUST_LOG", "debug");
+            srrp::log_set_level(srrp::LogLevel::Debug);
+            println!("Debug mode is on");
+        }
+        2 => {
+            std::env::set_var("RUST_LOG", "trace");
+            srrp::log_set_level(srrp::LogLevel::Trace);
+            println!("Trace mode is on");
+        }
+        _ => println!("Don't be crazy"),
+    }
+
+    // logger init
+    simple_logger::SimpleLogger::new().env().init().unwrap();
+
+    let server = TcpListener::bind("0.0.0.0:3825").unwrap();
+    for stream in server.incoming() {
+        spawn (move || {
+            let mut ws = accept(stream.unwrap()).unwrap();
+            ws.get_mut().set_nonblocking(true)
+                .expect("set_nonblocking call failed");
+
+            let mut nodeid = rand::random::<u32>();
+            while nodeid <= 0xff {
+                nodeid = rand::random::<u32>();
+            }
+
+            let tcp_client = cio::CioStream::unix_connect("/tmp/srrp")
+                .expect("connect unix socket failed");
+            let conn = srrp::SrrpConnect::new(tcp_client, nodeid).unwrap();
+
+            loop {
+                match ws.read_message() {
+                    Ok(msg) => {
+                        if msg.is_text() {
+                            if let Ok(jdata) = json::parse(&msg.into_text().unwrap().to_string()) {
+                                if jdata["leader"].as_str() != None &&
+                                    jdata["leader"].as_str().unwrap().chars().next() != None &&
+                                    jdata["dstid"].as_u32() != None &&
+                                    jdata["anchor"].as_str() != None &&
+                                    jdata["payload"].as_str() != None {
+                                    if let Some(pac) = srrp::Srrp::new(
+                                        jdata["leader"].as_str().unwrap().chars().next().unwrap(),
+                                        1, nodeid,
+                                        jdata["dstid"].as_u32().unwrap(),
+                                        jdata["anchor"].as_str().unwrap(),
+                                        jdata["payload"].as_str().unwrap()) {
+                                        conn.send(&pac);
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    Err(_) => ()
+                }
+
+                if conn.wait() == 0 {
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                    continue;
+                }
+
+                while let Some(pac) = conn.iter() {
+                    info!("srrp_packet: srcid:{}, dstid:{}, {}?{}",
+                          pac.srcid, pac.dstid, pac.anchor, pac.payload);
+                    match ws.write_message(Message::Text(std::str::from_utf8(
+                        &pac.raw[0..pac.packet_len as usize - 6]).unwrap().to_string())) {
+                        Ok(_) => (),
+                        Err(e) => { warn!("write message:{}", e); }
+                    }
+                }
+            }
+        });
+    }
+}
