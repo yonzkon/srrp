@@ -1,4 +1,4 @@
-use log::{debug, warn};
+use log::{info, debug, warn};
 use clap::Parser;
 use std::net::TcpListener;
 use std::thread::spawn;
@@ -80,6 +80,8 @@ fn main() {
                                     }
                                 }
                             }
+                        } else if msg.is_close() {
+                            break;
                         }
                     },
                     Err(_) => ()
@@ -112,6 +114,8 @@ fn main() {
                     }
                 }
             }
+
+            info!("websocket fin, exit ...");
         });
     }
 }
