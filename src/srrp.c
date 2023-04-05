@@ -180,10 +180,10 @@ u32 srrp_next_packet_offset(const u8 *buf, u32 len)
 
 struct srrp_packet *srrp_parse(const u8 *buf, u32 len)
 {
-    char leader;
-    u8 fin;
-    u16 ver, packet_len;
-    u32 payload_len, srcid, dstid;
+    char leader = 0;
+    u8 fin = 0;
+    u16 ver = 0, packet_len = 0;
+    u32 payload_len = 0, srcid = 0, dstid = 0;
     char anchor[SRRP_ANCHOR_MAX] = {0};
 
     leader = buf[0];
