@@ -20,8 +20,8 @@ void srrpr_add_stream(
 
 int srrpr_wait(struct srrp_router *router);
 struct srrp_packet *srrpr_iter(struct srrp_router *router);
-void srrpr_forward(struct srrp_router *router, struct srrp_packet *pac);
 int srrpr_send(struct srrp_router *router, struct srrp_packet *pac);
+int srrpr_forward(struct srrp_router *router, struct srrp_packet *pac);
 
 #ifdef __cplusplus
 }

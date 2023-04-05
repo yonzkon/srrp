@@ -691,8 +691,13 @@ static void srrpr_poll(struct srrp_router *router)
                     if (vsize(ss->txbuf)) {
                         int nr = cio_stream_send(
                             ss->stream, vraw(ss->txbuf), vsize(ss->txbuf));
-                        if (nr > 0) assert((u32)nr <= vsize(ss->txbuf));
-                        vdrop(ss->txbuf, nr);
+                        if (nr > 0) {
+                            assert((u32)nr <= vsize(ss->txbuf));
+                            LOG_TRACE("[%p:send] #%d msg:%s", ss->router,
+                                      cio_stream_get_fd(ss->stream),
+                                      vraw(ss->txbuf));
+                            vdrop(ss->txbuf, nr);
+                        }
                         if (vsize(ss->txbuf) == 0) {
                             cio_register(router->ctx, cio_stream_get_fd(ss->stream),
                                          token, CIOF_READABLE, ss);
@@ -739,18 +744,6 @@ struct srrp_packet *srrpr_iter(struct srrp_router *router)
     return NULL;
 }
 
-void srrpr_forward(struct srrp_router *router, struct srrp_packet *pac)
-{
-    struct message *pos;
-    list_for_each_entry(pos, &router->msgs, ln) {
-        if (pos->pac == pac) {
-            pos->state = MESSAGE_ST_FORWARD;
-            return;
-        }
-    }
-    assert(false);
-}
-
 int srrpr_send(struct srrp_router *router, struct srrp_packet *pac)
 {
     int retval = -1;
@@ -769,6 +762,18 @@ int srrpr_send(struct srrp_router *router, struct srrp_packet *pac)
     }
 
     return retval;
+}
+
+int srrpr_forward(struct srrp_router *router, struct srrp_packet *pac)
+{
+    struct message *pos;
+    list_for_each_entry(pos, &router->msgs, ln) {
+        if (pos->pac == pac) {
+            pos->state = MESSAGE_ST_FORWARD;
+            return 0;
+        }
+    }
+    return -1;
 }
 
 /**
