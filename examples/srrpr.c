@@ -17,6 +17,7 @@ static int exit_flag;
 
 static void signal_handler(int sig)
 {
+    (void)sig;
     exit_flag = 1;
 }
 
@@ -57,20 +58,20 @@ int main(int argc, char *argv[])
     LOG_INFO("open tcp socket #%d at %s", cio_listener_get_fd(tcp_listener), opt_string(opt));
 
     struct srrp_router *router = srrpr_new();
-    srrpr_add_listener(router, unix_listener, 1, 0x1);
-    srrpr_add_listener(router, tcp_listener, 1, 0x2);
+    srrpr_add_listener(router, unix_listener, 1, 0xf1);
+    srrpr_add_listener(router, tcp_listener, 1, 0xf2);
 
     for (;;) {
         if (exit_flag == 1) break;
 
-        if (srrpr_wait(router) == 0)
+        if (srrpr_wait(router) == 0) {
+            usleep(10 * 1000);
             continue;
+        }
 
-        for (;;) {
-            struct srrp_packet *pac = srrpr_iter(router);
-            if (!pac) break;
-
-            if (srrp_get_dstid(pac) == 0x1 || srrp_get_dstid(pac) == 0x2) {
+        struct srrp_packet *pac;
+        while ((pac = srrpr_iter(router))) {
+            if (srrp_get_dstid(pac) == 0xf1 || srrp_get_dstid(pac) == 0xf2) {
                 LOG_INFO("serv packet: %s", srrp_get_raw(pac));
                 struct srrp_packet *resp = srrp_new_response(
                     srrp_get_dstid(pac),
