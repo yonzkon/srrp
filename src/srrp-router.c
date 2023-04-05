@@ -154,7 +154,7 @@ static void srrp_stream_drop(struct srrp_stream *ss)
 
 static void srrp_stream_sync_nodeid(struct srrp_stream *ss)
 {
-    LOG_TRACE("[%p:sync_nodeid] #%d sync", ss->router, cio_stream_get_raw(ss->stream));
+    LOG_TRACE("[%p:sync_nodeid] #%d sync", ss->router, cio_stream_get_fd(ss->stream));
 
     struct srrp_packet *pac = srrp_new_ctrl(ss->l_nodeid, SRRP_CTRL_SYNC, "");
     cio_stream_send(ss->stream, srrp_get_raw(pac), srrp_get_packet_len(pac));
@@ -263,7 +263,7 @@ static void srrp_stream_send(
     // payload_len < cnt, maybe zero, should not remove this code
     if (srrp_get_payload_len(pac) < PAYLOAD_LIMIT) {
         vpack(ss->txbuf, srrp_get_raw(pac), srrp_get_packet_len(pac));
-        cio_register(ss->router->ctx, cio_stream_get_raw(ss->stream),
+        cio_register(ss->router->ctx, cio_stream_get_fd(ss->stream),
                      TOKEN_STREAM, CIOF_READABLE | CIOF_WRITABLE, ss);
         return;
     }
@@ -290,7 +290,7 @@ static void srrp_stream_send(
         idx += tmp_cnt;
         srrp_free(tmp_pac);
     }
-    cio_register(ss->router->ctx, cio_stream_get_raw(ss->stream),
+    cio_register(ss->router->ctx, cio_stream_get_fd(ss->stream),
                  TOKEN_STREAM, CIOF_READABLE | CIOF_WRITABLE, ss);
 }
 
@@ -380,8 +380,8 @@ void srrpr_add_listener(
     struct srrp_router *router, struct cio_listener *listener, int owned, u32 nodeid)
 {
     struct srrp_listener *sl = srrp_listener_new(router, listener, owned, nodeid);
-    cio_register(router->ctx, cio_listener_get_raw(listener),
-                 TOKEN_LISTENER, CIOE_READABLE, sl);
+    cio_register(router->ctx, cio_listener_get_fd(listener),
+                 TOKEN_LISTENER, CIOF_READABLE, sl);
     list_add(&sl->ln, &router->listeners);
 }
 
@@ -389,8 +389,8 @@ void srrpr_add_stream(
     struct srrp_router *router, struct cio_stream *stream, int owned, u32 nodeid)
 {
     struct srrp_stream *ss = srrp_stream_new(router, stream, owned, nodeid);
-    cio_register(router->ctx, cio_stream_get_raw(stream),
-                 TOKEN_STREAM, CIOE_READABLE, ss);
+    cio_register(router->ctx, cio_stream_get_fd(stream),
+                 TOKEN_STREAM, CIOF_READABLE, ss);
     list_add(&ss->ln, &router->streams);
 }
 
@@ -591,7 +591,7 @@ static void handle_message(struct srrp_router *router)
 
         assert(srrp_get_ver(pos->pac) == SRRP_VERSION);
         LOG_TRACE("[%p:handle_message] #%d msg:%p, state:%d, raw:%s",
-                  router, cio_stream_get_raw(pos->stream->stream),
+                  router, cio_stream_get_fd(pos->stream->stream),
                   pos, pos->state, srrp_get_raw(pos->pac));
 
         if (srrp_get_leader(pos->pac) == SRRP_CTRL_LEADER) {
@@ -602,7 +602,7 @@ static void handle_message(struct srrp_router *router)
         if (pos->stream->r_nodeid == 0) {
             LOG_DEBUG("[%p:handle_message] #%d nodeid zero: "
                       "l_nodeid:%d, r_nodeid:%d, state:%d, raw:%s",
-                      router, cio_stream_get_raw(pos->stream->stream),
+                      router, cio_stream_get_fd(pos->stream->stream),
                       pos->stream->l_nodeid, pos->stream->r_nodeid,
                       pos->state, srrp_get_raw(pos->pac));
             if (srrp_get_leader(pos->pac) == SRRP_REQUEST_LEADER)
@@ -661,7 +661,7 @@ static void srrpr_poll(struct srrp_router *router)
 {
     assert(cio_poll(router->ctx, 0) == 0);
     for (;;) {
-        struct cio_event *ev = cioe_iter(router->ctx);
+        struct cio_event *ev = cio_iter(router->ctx);
         if (!ev) break;
         int token;
         switch ((token = cioe_get_token(ev))) {
@@ -670,32 +670,32 @@ static void srrpr_poll(struct srrp_router *router)
                 struct cio_stream *new_stream = cio_listener_accept(sl->listener);
                 struct srrp_stream *ss = srrp_stream_new(router, new_stream, 1, sl->l_nodeid);
                 list_add(&ss->ln, &router->streams);
-                cio_register(router->ctx, cio_stream_get_raw(new_stream),
-                             TOKEN_STREAM, CIOF_READABLE, ss);
+                cio_register(router->ctx, cio_stream_get_fd(new_stream),
+                             TOKEN_STREAM, CIOF_READABLE | CIOF_WRITABLE, ss);
                 break;
             }
             case TOKEN_STREAM: {
-                int code = cioe_get_code(ev);
                 struct srrp_stream *ss = cioe_get_wrapper(ev);
-                if (code == CIOE_READABLE) {
+                if (cioe_is_readable(ev)) {
                     char buf[1024] = {0};
                     int nr = cio_stream_recv(ss->stream, buf, sizeof(buf));
                     if (nr == 0 || nr == -1) {
-                        cio_unregister(router->ctx, cio_stream_get_raw(ss->stream));
+                        cio_unregister(router->ctx, cio_stream_get_fd(ss->stream));
                         srrp_stream_drop(ss);
                     } else {
                         vpack(ss->rxbuf, buf, nr);
                         gettimeofday(&ss->ts_recv, NULL);
                     }
-                } else if (code == CIOE_WRITABLE) {
+                }
+                if (cioe_is_writable(ev)) {
                     if (vsize(ss->txbuf)) {
                         int nr = cio_stream_send(
                             ss->stream, vraw(ss->txbuf), vsize(ss->txbuf));
                         if (nr > 0) assert((u32)nr <= vsize(ss->txbuf));
                         vdrop(ss->txbuf, nr);
                         if (vsize(ss->txbuf) == 0) {
-                            cio_register(router->ctx, cio_stream_get_raw(ss->stream),
-                                        token, CIOF_READABLE, ss);
+                            cio_register(router->ctx, cio_stream_get_fd(ss->stream),
+                                         token, CIOF_READABLE, ss);
                         }
                     }
                 }

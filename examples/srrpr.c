@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
         perror("unix_listener_bind");
         exit(-1);
     }
-    LOG_INFO("open unix socket #%d at %s", cio_listener_get_raw(unix_listener), opt_string(opt));
+    LOG_INFO("open unix socket #%d at %s", cio_listener_get_fd(unix_listener), opt_string(opt));
 
     opt = find_opt("tcp", opttab);
     struct cio_listener *tcp_listener = tcp_listener_bind(opt_string(opt));
@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
         perror("tcp_listener_bind");
         exit(-1);
     }
-    LOG_INFO("open tcp socket #%d at %s", cio_listener_get_raw(tcp_listener), opt_string(opt));
+    LOG_INFO("open tcp socket #%d at %s", cio_listener_get_fd(tcp_listener), opt_string(opt));
 
     struct srrp_router *router = srrpr_new();
     srrpr_add_listener(router, unix_listener, 1, 0x1);
