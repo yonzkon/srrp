@@ -36,18 +36,18 @@ fn main() {
     // logger init
     simple_logger::SimpleLogger::new().env().init().unwrap();
 
-    // server_unix init
-    let server_unix = cio::CioListener::unix_bind("/tmp/srrp")
+    // unix_server init
+    let unix_server = cio::CioListener::bind("unix://tmp/srrp")
         .expect("listen unix socket failed");
 
-    // server_tcp init
-    let server_tcp = cio::CioListener::tcp_bind("127.0.0.1:3824")
+    // tcp_server init
+    let tcp_server = cio::CioListener::bind("tcp://127.0.0.1:3824")
         .expect("listen tcp socket failed");
 
     // srrp init
     let mut router = srrp::SrrpRouter::new().unwrap();
-    router.add_listener(server_unix, 0xf1);
-    router.add_listener(server_tcp, 0xf2);
+    router.add_listener(unix_server, 0xf1);
+    router.add_listener(tcp_server, 0xf2);
 
     // signal
     ctrlc::set_handler(move || {

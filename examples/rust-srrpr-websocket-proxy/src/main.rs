@@ -49,9 +49,9 @@ fn main() {
                 nodeid = rand::random::<u32>();
             }
 
-            let tcp_client = cio::CioStream::unix_connect("/tmp/srrp")
+            let client = cio::CioStream::connect("unix://tmp/srrp")
                 .expect("connect unix socket failed");
-            let conn = srrp::SrrpConnect::new(tcp_client, nodeid).unwrap();
+            let conn = srrp::SrrpConnect::new(client, nodeid).unwrap();
 
             loop {
                 match ws.read_message() {

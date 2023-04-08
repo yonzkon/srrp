@@ -18,8 +18,7 @@
 #include "srrp-log.h"
 #include "crc16.h"
 
-#define UNIX_ADDR "./test_unix"
-#define TCP_ADDR "127.0.0.1:1224"
+#define UNIX_ADDR "unix:/./test_unix"
 
 const char *PAYLOAD = "t:hello";
 const char *PAYLOAD2 =
@@ -78,10 +77,10 @@ static void *requester_thread(void *args)
 {
     sleep(1);
 
-    struct cio_stream *unix_stream = unix_stream_connect(UNIX_ADDR);
-    assert_true(unix_stream);
+    struct cio_stream *stream = cio_stream_connect(UNIX_ADDR);
+    assert_true(stream);
 
-   struct srrp_connect *conn = srrpc_new(unix_stream, 1, 0x3333);
+   struct srrp_connect *conn = srrpc_new(stream, 1, 0x3333);
 
     struct srrp_packet *pac = srrp_new_request(0x3333, 0x8888, "/hello", PAYLOAD);
     int rc = srrpc_send(conn, pac);
@@ -121,14 +120,11 @@ static int responser_finished = 0;
 
 static void *responser_thread(void *args)
 {
-    struct cio_listener *unix_listener = unix_listener_bind(UNIX_ADDR);
-    if (!unix_listener) {
-        perror("unix_listener_bind");
-        exit(-1);
-    }
+    struct cio_listener *listener = cio_listener_bind(UNIX_ADDR);
+    assert_true(listener);
 
     struct srrp_router *router = srrpr_new();
-    srrpr_add_listener(router, unix_listener, 1, 0x8888);
+    srrpr_add_listener(router, listener, 1, 0x8888);
 
     for (;;) {
         if (responser_finished && requester_finished)

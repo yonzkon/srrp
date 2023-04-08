@@ -19,7 +19,7 @@
 #include "crc16.h"
 
 #define UNIX_ADDR "./test_unix"
-#define TCP_ADDR "127.0.0.1:1224"
+#define TCP_ADDR "tcp://127.0.0.1:1224"
 
 /**
  * publish
@@ -80,10 +80,10 @@ static int subscribe_finished = 0;
 
 static void *subscribe_thread(void *args)
 {
-    struct cio_stream *tcp_stream = tcp_stream_connect(TCP_ADDR);
-    assert_true(tcp_stream);
+    struct cio_stream *stream = cio_stream_connect(TCP_ADDR);
+    assert_true(stream);
 
-    struct srrp_connect *conn = srrpc_new(tcp_stream, 1, 0x6666);
+    struct srrp_connect *conn = srrpc_new(stream, 1, 0x6666);
 
     struct srrp_packet *pac_sub = srrp_new_subscribe("/test-topic", "{}");
     int rc = srrpc_send(conn, pac_sub);
@@ -128,14 +128,11 @@ static void test_pub_sub(void **status)
 {
     log_set_level(LOG_LV_DEBUG);
 
-    struct cio_listener *tcp_listener = tcp_listener_bind(TCP_ADDR);
-    if (!tcp_listener) {
-        perror("tcp_listener_bind");
-        exit(-1);
-    }
+    struct cio_listener *listener = cio_listener_bind(TCP_ADDR);
+    assert_true(listener);
 
     struct srrp_router *router = srrpr_new();
-    srrpr_add_listener(router, tcp_listener, 1, 0x1);
+    srrpr_add_listener(router, listener, 1, 0x1);
 
     pthread_t subscribe_pid;
     pthread_create(&subscribe_pid, NULL, subscribe_thread, NULL);

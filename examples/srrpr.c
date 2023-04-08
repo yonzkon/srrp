@@ -25,8 +25,8 @@ static struct opt opttab[] = {
     INIT_OPT_BOOL("-h", "help", false, "print this usage"),
     INIT_OPT_BOOL("-D", "debug", false, "enable debug [defaut: false]"),
     INIT_OPT_BOOL("-r", "srrp_mode", true, "enable srrp mode [defaut: true]"),
-    INIT_OPT_STRING("-u:", "unix", "/tmp/srrp", "unix socket addr"),
-    INIT_OPT_STRING("-t:", "tcp", "127.0.0.1:3824", "tcp socket addr"),
+    INIT_OPT_STRING("-u:", "unix", "unix://tmp/srrp", "unix socket addr"),
+    INIT_OPT_STRING("-t:", "tcp", "tcp://127.0.0.1:3824", "tcp socket addr"),
     INIT_OPT_NONE(),
 };
 
@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
         log_set_level(LOG_LV_TRACE);
 
     opt = find_opt("unix", opttab);
-    struct cio_listener *unix_listener = unix_listener_bind(opt_string(opt));
+    struct cio_listener *unix_listener = cio_listener_bind(opt_string(opt));
     if (!unix_listener) {
         perror("unix_listener_bind");
         exit(-1);
@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
     LOG_INFO("open unix socket #%d at %s", cio_listener_get_fd(unix_listener), opt_string(opt));
 
     opt = find_opt("tcp", opttab);
-    struct cio_listener *tcp_listener = tcp_listener_bind(opt_string(opt));
+    struct cio_listener *tcp_listener = cio_listener_bind(opt_string(opt));
     if (!tcp_listener) {
         perror("tcp_listener_bind");
         exit(-1);
