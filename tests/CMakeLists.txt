@@ -1,5 +1,9 @@
 include_directories(../src)
 
+add_executable(test-vec test-vec.c)
+target_link_libraries(test-vec cmocka srrp cio)
+add_test(test-vec ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-vec)
+
 add_executable(test-srrp test-srrp.c)
 target_link_libraries(test-srrp cmocka srrp cio pthread)
 add_test(test-srrp ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-srrp)

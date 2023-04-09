@@ -36,9 +36,9 @@ static void *publish_thread(void *args)
     uint32_t host;
     uint16_t port;
     char *tmp = strdup(TCP_ADDR);
-    char *colon = strchr(tmp, ':');
+    char *colon = strrchr(tmp, ':');
     *colon = 0;
-    host = inet_addr(tmp);
+    host = inet_addr(tmp + 6);
     port = htons(atoi(colon + 1));
     free(tmp);
 
@@ -49,12 +49,7 @@ static void *publish_thread(void *args)
     sockaddr.sin_port = port;
 
     rc = connect(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
-    if (rc == -1) {
-        close(fd);
-        return NULL;
-    }
-
-    sleep(1);
+    assert_true(rc == 0);
 
     struct srrp_packet *pac_sync = srrp_new_ctrl(0x9999, SRRP_CTRL_SYNC, "");
     send(fd, srrp_get_raw(pac_sync), srrp_get_packet_len(pac_sync), 0);
@@ -91,7 +86,7 @@ static void *subscribe_thread(void *args)
     srrp_free(pac_sub);
 
     for (;;) {
-        if (subscribe_finished)
+        if (subscribe_finished == 2)
             break;
 
         if (srrpc_wait(conn, 100 * 1000) == 0)
@@ -102,7 +97,7 @@ static void *subscribe_thread(void *args)
             if (!pac) break;
             if (srrp_get_leader(pac) == SRRP_PUBLISH_LEADER) {
                 LOG_INFO("sub recv: %s", srrp_get_raw(pac));
-                subscribe_finished = 1;
+                subscribe_finished += 1;
                 break;
             }
         }
@@ -126,7 +121,7 @@ static void *subscribe_thread(void *args)
 
 static void test_pub_sub(void **status)
 {
-    log_set_level(LOG_LV_DEBUG);
+    log_set_level(LOG_LV_TRACE);
 
     struct cio_listener *listener = cio_listener_bind(TCP_ADDR);
     assert_true(listener);
@@ -136,11 +131,12 @@ static void test_pub_sub(void **status)
 
     pthread_t subscribe_pid;
     pthread_create(&subscribe_pid, NULL, subscribe_thread, NULL);
+    sleep(1);
     pthread_t publish_pid;
     pthread_create(&publish_pid, NULL, publish_thread, NULL);
 
     for (;;) {
-        if (publish_finished && subscribe_finished)
+        if (publish_finished && subscribe_finished == 2)
             break;
 
         if (srrpr_wait(router, 100 * 1000) == 0)

@@ -75,12 +75,10 @@ static int requester_finished = 0;
 
 static void *requester_thread(void *args)
 {
-    sleep(1);
-
     struct cio_stream *stream = cio_stream_connect(UNIX_ADDR);
     assert_true(stream);
 
-   struct srrp_connect *conn = srrpc_new(stream, 1, 0x3333);
+    struct srrp_connect *conn = srrpc_new(stream, 1, 0x3333);
 
     struct srrp_packet *pac = srrp_new_request(0x3333, 0x8888, "/hello", PAYLOAD);
     int rc = srrpc_send(conn, pac);
@@ -172,6 +170,7 @@ static void test_req_resp(void **status)
 
     pthread_t responser_pid;
     pthread_create(&responser_pid, NULL, responser_thread, NULL);
+    sleep(1);
     pthread_t requester_pid;
     pthread_create(&requester_pid, NULL, requester_thread, NULL);
 
