@@ -11,7 +11,8 @@ endif ()
 if (BUILD_SHARED)
     add_library(srrp SHARED ${SRC} ${SRC_POSIX})
     set_target_properties(srrp PROPERTIES PUBLIC_HEADER "${INC}")
-    set_target_properties(srrp PROPERTIES VERSION 0.0.1 SOVERSION 0)
+    set_target_properties(srrp PROPERTIES VERSION 0.1.0 SOVERSION 0)
+    target_link_libraries(srrp cio) # for macos
     set(TARGET_SHARED srrp)
 endif ()
 
