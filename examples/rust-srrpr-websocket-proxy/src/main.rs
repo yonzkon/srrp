@@ -54,6 +54,7 @@ fn main() {
             let conn = srrp::SrrpConnect::new(client, nodeid).unwrap();
 
             loop {
+                // read message from websocket, then send packet to srrp network
                 match ws.read_message() {
                     Ok(msg) => {
                         if msg.is_text() {
@@ -87,16 +88,19 @@ fn main() {
                     Err(_) => ()
                 }
 
+                // wait for srrp packet, idle in 10ms
                 if conn.wait(10 * 1000) == 0 {
                     continue;
                 }
 
+                // read packet from srrp network, then send message to websocket
                 while let Some(pac) = conn.iter() {
                     debug!("recv srrp:{}", std::str::from_utf8(&pac.raw).unwrap());
                     let mut payload = json::JsonValue::from("");
                     if &pac.payload[0..2] == "j:" {
-                        if let Ok(j) = json::parse(&pac.payload[2..]) {
-                            payload = j;
+                        match json::parse(&pac.payload[2..]) {
+                            Ok(j) => { payload = j; },
+                            Err(e) => { warn!("parse payload:{}", e); },
                         }
                     } else if &pac.payload[0..2] == "t:" {
                         payload = json::JsonValue::from(&pac.payload[2..]);
@@ -112,6 +116,11 @@ fn main() {
                         Ok(_) => (),
                         Err(e) => { warn!("write message:{}", e); }
                     }
+                    //match ws.write_message(Message::Text(
+                    //    std::str::from_utf8(&pac.raw).unwrap().to_string())) {
+                    //    Ok(_) => (),
+                    //    Err(e) => { warn!("write message:{}", e); }
+                    //}
                 }
             }
 
