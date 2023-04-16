@@ -191,14 +191,16 @@ struct srrp_packet *srrp_parse(const u8 *buf, u32 len)
     if (leader == SRRP_CTRL_LEADER ||
         leader == SRRP_REQUEST_LEADER ||
         leader == SRRP_RESPONSE_LEADER) {
-        if (sscanf((char *)buf + 1, "%c%hx#%hx#%x#%x#%x:%[^?]",
+        // 1024 means SRRP_ANCHOR_MAX
+        if (sscanf((char *)buf + 1, "%c%hx#%hx#%x#%x#%x:%1024[^?]",
                    &fin, &ver, &packet_len, &payload_len,
                    &srcid, &dstid, anchor) != 7)
             return NULL;
     } else if (leader == SRRP_SUBSCRIBE_LEADER ||
                leader == SRRP_UNSUBSCRIBE_LEADER ||
                leader == SRRP_PUBLISH_LEADER) {
-        if (sscanf((char *)buf + 1, "%c%hx#%hx#%x:%[^?]",
+        // 1024 means SRRP_ANCHOR_MAX
+        if (sscanf((char *)buf + 1, "%c%hx#%hx#%x:%1024[^?]",
                    &fin, &ver, &packet_len, &payload_len, anchor) != 5)
             return NULL;
     } else {

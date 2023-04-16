@@ -684,6 +684,9 @@ static void srrpr_poll(struct srrp_router *router, u64 usec)
                         srrp_stream_drop(ss);
                     } else {
                         vpack(ss->rxbuf, buf, nr);
+                        u8 fin = 0;
+                        vpush(ss->rxbuf, &fin);
+                        vpop(ss->rxbuf, &fin);
                         gettimeofday(&ss->ts_recv, NULL);
                     }
                 }
