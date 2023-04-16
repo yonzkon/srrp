@@ -680,6 +680,12 @@ static void srrpr_poll(struct srrp_router *router, u64 usec)
                     char buf[1024] = {0};
                     int nr = cio_stream_recv(ss->stream, buf, sizeof(buf));
                     if (nr == 0 || nr == -1) {
+                        struct message *pos, *n;
+                        list_for_each_entry_safe(pos, n, &router->msgs, ln) {
+                            if (pos->stream == ss) {
+                                message_drop(pos);
+                            }
+                        }
                         cio_unregister(router->ctx, cio_stream_get_fd(ss->stream));
                         srrp_stream_drop(ss);
                     } else {
