@@ -161,20 +161,22 @@ struct srrp_packet *srrp_cat(
 u32 srrp_next_packet_offset(const u8 *buf, u32 len)
 {
     for (u32 i = 0; i < len; i++) {
-        if (isdigit(buf[i + 1])) {
-            if (buf[i] == SRRP_CTRL_LEADER)
+        if (buf[i] == SRRP_CTRL_LEADER ||
+            buf[i] == SRRP_REQUEST_LEADER ||
+            buf[i] == SRRP_RESPONSE_LEADER ||
+            buf[i] == SRRP_SUBSCRIBE_LEADER ||
+            buf[i] == SRRP_UNSUBSCRIBE_LEADER ||
+            buf[i] == SRRP_PUBLISH_LEADER) {
+            if (i + 3 < len) {
+                if (buf[i+2] - '0' == SRRP_VERSION_MAJOR &&
+                    buf[i+3] - '0' == SRRP_VERSION_MINOR) {
+                    return i;
+                }
+            } else {
                 return i;
-            else if (buf[i] == SRRP_REQUEST_LEADER)
-                return i;
-            else if (buf[i] == SRRP_RESPONSE_LEADER)
-                return i;
-            else if (buf[i] == SRRP_SUBSCRIBE_LEADER ||
-                     buf[i] == SRRP_UNSUBSCRIBE_LEADER ||
-                     buf[i] == SRRP_PUBLISH_LEADER)
-                return i;
+            }
         }
     }
-
     return len;
 }
 
