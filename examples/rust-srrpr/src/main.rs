@@ -61,7 +61,6 @@ fn main() {
         }
 
         if router.wait(10 * 1000) == 0 {
-            std::thread::sleep(std::time::Duration::from_millis(10));
             continue;
         }
 
