@@ -58,8 +58,8 @@ int main(int argc, char *argv[])
     LOG_INFO("open tcp socket #%d at %s", cio_listener_get_fd(tcp_listener), opt_string(opt));
 
     struct srrp_router *router = srrpr_new();
-    srrpr_add_listener(router, unix_listener, 1, 0xf1);
-    srrpr_add_listener(router, tcp_listener, 1, 0xf2);
+    srrpr_add_listener(router, unix_listener, 1, "f1");
+    srrpr_add_listener(router, tcp_listener, 1, "f2");
 
     for (;;) {
         if (exit_flag == 1) break;
@@ -70,7 +70,8 @@ int main(int argc, char *argv[])
 
         struct srrp_packet *pac;
         while ((pac = srrpr_iter(router))) {
-            if (srrp_get_dstid(pac) == 0xf1 || srrp_get_dstid(pac) == 0xf2) {
+            if (strcmp(srrp_get_dstid(pac), "f1") == 0 ||
+                strcmp(srrp_get_dstid(pac), "f2") == 0) {
                 LOG_INFO("serv packet: %s", srrp_get_raw(pac));
                 struct srrp_packet *resp = srrp_new_response(
                     srrp_get_dstid(pac),

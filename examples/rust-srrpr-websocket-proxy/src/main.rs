@@ -51,7 +51,7 @@ fn main() {
 
             let client = cio::CioStream::connect("unix://tmp/srrp")
                 .expect("connect unix socket failed");
-            let conn = srrp::SrrpConnect::new(client, nodeid).unwrap();
+            let conn = srrp::SrrpConnect::new(client, &nodeid.to_string()).unwrap();
 
             loop {
                 // read message from websocket, then send packet to srrp network
@@ -62,13 +62,13 @@ fn main() {
                             if let Ok(jdata) = json::parse(&msg.into_text().unwrap().to_string()) {
                                 if jdata["leader"].as_str() != None &&
                                     jdata["leader"].as_str().unwrap().chars().next() != None &&
-                                    jdata["dstid"].as_u32() != None &&
+                                    jdata["dstid"].as_str() != None &&
                                     jdata["anchor"].as_str() != None &&
                                     jdata["payload"].as_str() != None {
                                     if let Some(pac) = srrp::Srrp::new(
                                         jdata["leader"].as_str().unwrap().chars().next().unwrap(),
-                                        1, nodeid,
-                                        jdata["dstid"].as_u32().unwrap(),
+                                        1, &nodeid.to_string(),
+                                        jdata["dstid"].as_str().unwrap(),
                                         jdata["anchor"].as_str().unwrap(),
                                         jdata["payload"].as_str().unwrap()) {
                                         conn.send(&pac);
@@ -107,8 +107,8 @@ fn main() {
                     }
                     let tmp = json::object!{
                         leader: pac.leader,
-                        srcid: pac.srcid,
-                        dstid: pac.dstid,
+                        srcid: pac.srcid[0..],
+                        dstid: pac.dstid[0..],
                         anchor: pac.anchor[0..],
                         payload: payload,
                     };

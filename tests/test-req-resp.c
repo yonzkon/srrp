@@ -78,9 +78,9 @@ static void *requester_thread(void *args)
     struct cio_stream *stream = cio_stream_connect(UNIX_ADDR);
     assert_true(stream);
 
-    struct srrp_connect *conn = srrpc_new(stream, 1, 0x3333);
+    struct srrp_connect *conn = srrpc_new(stream, 1, "3333");
 
-    struct srrp_packet *pac = srrp_new_request(0x3333, 0x8888, "/hello", PAYLOAD);
+    struct srrp_packet *pac = srrp_new_request("3333", "8888", "/hello", PAYLOAD);
     int rc = srrpc_send(conn, pac);
     assert_true(rc != -1);
     srrp_free(pac);
@@ -122,7 +122,7 @@ static void *responser_thread(void *args)
     assert_true(listener);
 
     struct srrp_router *router = srrpr_new();
-    srrpr_add_listener(router, listener, 1, 0x8888);
+    srrpr_add_listener(router, listener, 1, "8888");
 
     for (;;) {
         if (responser_finished && requester_finished)

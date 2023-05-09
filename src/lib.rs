@@ -45,9 +45,11 @@ impl Drop for SrrpConnect {
 }
 
 impl SrrpConnect {
-    pub fn new(stream: CioStream, nodeid: u32) -> Result<SrrpConnect, Error> {
+    pub fn new(stream: CioStream, nodeid: &str) -> Result<SrrpConnect, Error> {
         unsafe {
-            let conn = srrp_sys::srrpc_new(stream.stream as *mut _, 0, nodeid);
+            let nodeid = std::ffi::CString::new(nodeid).unwrap();
+            let conn = srrp_sys::srrpc_new(
+                stream.stream as *mut _, 0, nodeid.as_ptr() as *const i8);
             if conn.is_null() {
                 Err(Error::last_os_error())
             } else {
@@ -117,16 +119,20 @@ impl SrrpRouter {
         }
     }
 
-    pub fn add_listener(&mut self, listener: CioListener, nodeid: u32) {
+    pub fn add_listener(&mut self, listener: CioListener, nodeid: &str) {
         unsafe {
-            srrp_sys::srrpr_add_listener(self.router, listener.listener as *mut _, 0, nodeid);
+            let nodeid = std::ffi::CString::new(nodeid).unwrap();
+            srrp_sys::srrpr_add_listener(
+                self.router, listener.listener as *mut _, 0, nodeid.as_ptr() as *const i8);
             self.listeners.push(listener);
         }
     }
 
-    pub fn add_stream(&mut self, stream: CioStream, nodeid: u32) {
+    pub fn add_stream(&mut self, stream: CioStream, nodeid: &str) {
         unsafe {
-            srrp_sys::srrpr_add_stream(self.router, stream.stream as *mut _, 0, nodeid);
+            let nodeid = std::ffi::CString::new(nodeid).unwrap();
+            srrp_sys::srrpr_add_stream(
+                self.router, stream.stream as *mut _, 0, nodeid.as_ptr() as *const i8);
             self.streams.push(stream);
         }
     }
@@ -166,8 +172,8 @@ pub struct SrrpPacket {
     pub ver: u16,
     pub packet_len: u16,
     pub payload_len: u32,
-    pub srcid: u32,
-    pub dstid: u32,
+    pub srcid: String,
+    pub dstid: String,
     pub anchor: String,
     pub payload: String,
     pub crc16: u16,
@@ -192,6 +198,8 @@ impl Srrp {
     fn from_raw_packet(pac: *mut srrp_sys::srrp_packet) -> SrrpPacket {
         unsafe {
             let packet_len = srrp_sys::srrp_get_packet_len(pac);
+            let srcid = srrp_sys::srrp_get_srcid(pac);
+            let dstid = srrp_sys::srrp_get_dstid(pac);
             let anchor = srrp_sys::srrp_get_anchor(pac);
             let payload = srrp_sys::srrp_get_payload(pac);
             let raw = srrp_sys::srrp_get_raw(pac);
@@ -201,8 +209,8 @@ impl Srrp {
                 ver: srrp_sys::srrp_get_ver(pac),
                 packet_len: packet_len,
                 payload_len: srrp_sys::srrp_get_payload_len(pac),
-                srcid: srrp_sys::srrp_get_srcid(pac),
-                dstid: srrp_sys::srrp_get_dstid(pac),
+                srcid: std::ffi::CStr::from_ptr(srcid).to_str().unwrap().to_owned(),
+                dstid: std::ffi::CStr::from_ptr(dstid).to_str().unwrap().to_owned(),
                 anchor: std::ffi::CStr::from_ptr(anchor).to_str().unwrap().to_owned(),
                 payload: match payload.is_null() {
                     true => String::from(""),
@@ -241,12 +249,16 @@ impl Srrp {
         }
     }
 
-    pub fn new(leader: char, fin: u8, srcid: u32, dstid: u32, anchor: &str, payload: &str)
+    pub fn new(leader: char, fin: u8, srcid: &str, dstid: &str, anchor: &str, payload: &str)
                -> Option<SrrpPacket> {
         unsafe {
+            let srcid = std::ffi::CString::new(srcid).unwrap();
+            let dstid = std::ffi::CString::new(dstid).unwrap();
             let anchor = std::ffi::CString::new(anchor).unwrap();
             let pac = srrp_sys::srrp_new(
-                leader as i8, fin, srcid, dstid,
+                leader as i8, fin,
+                srcid.as_ptr() as *const i8,
+                dstid.as_ptr() as *const i8,
                 anchor.as_ptr() as *const i8,
                 payload.as_ptr() as *const u8,
                 payload.len() as u32,
@@ -261,27 +273,29 @@ impl Srrp {
         }
     }
 
-    pub fn new_ctrl(srcid: u32, anchor: &str, payload: &str) -> Option<SrrpPacket> {
-        return Self::new('=', 1, srcid, 0, anchor, payload);
+    pub fn new_ctrl(srcid: &str, anchor: &str, payload: &str) -> Option<SrrpPacket> {
+        return Self::new('=', 1, srcid, "", anchor, payload);
     }
 
-    pub fn new_request(srcid: u32, dstid: u32, anchor: &str, payload: &str) -> Option<SrrpPacket> {
+    pub fn new_request(srcid: &str, dstid: &str, anchor: &str, payload: &str)
+                       -> Option<SrrpPacket> {
         return Self::new('>', 1, srcid, dstid, anchor, payload);
     }
 
-    pub fn new_response(srcid: u32, dstid: u32, anchor: &str, payload: &str) -> Option<SrrpPacket> {
+    pub fn new_response(srcid: &str, dstid: &str, anchor: &str, payload: &str)
+                        -> Option<SrrpPacket> {
         return Self::new('<', 1, srcid, dstid, anchor, payload);
     }
 
     pub fn new_subscribe(anchor: &str, payload: &str) -> Option<SrrpPacket> {
-        return Self::new('+', 1, 0, 0, anchor, payload);
+        return Self::new('+', 1, "", "", anchor, payload);
     }
 
     pub fn new_unsubscribe(anchor: &str, payload: &str) -> Option<SrrpPacket> {
-        return Self::new('-', 1, 0, 0, anchor, payload);
+        return Self::new('-', 1, "", "", anchor, payload);
     }
 
     pub fn new_publish(anchor: &str, payload: &str) -> Option<SrrpPacket> {
-        return Self::new('@', 1, 0, 0, anchor, payload);
+        return Self::new('@', 1, "", "", anchor, payload);
     }
 }

@@ -56,8 +56,8 @@ struct srrp_stream {
     vec_8_t *txbuf;
     vec_8_t *rxbuf;
 
-    u32 l_nodeid; /* local nodeid */
-    u32 r_nodeid; /* remote nodeid */
+    str_t *l_nodeid; /* local nodeid */
+    str_t *r_nodeid; /* remote nodeid */
     vec_p_t *sub_topics;
     struct srrp_packet *rxpac_unfin;
 
@@ -69,7 +69,7 @@ struct srrp_stream {
 };
 
 struct srrp_listener {
-    u32 l_nodeid; /* local nodeid */
+    str_t *l_nodeid; /* local nodeid */
     struct cio_listener *listener;
     int owned;
     struct list_head ln;
@@ -109,7 +109,8 @@ static void message_drop(struct message *msg)
  */
 
 static struct srrp_stream *srrp_stream_new(
-    struct srrp_router *router, struct cio_stream *stream, int owned, u32 l_nodeid)
+    struct srrp_router *router, struct cio_stream *stream,
+    int owned, const char *l_nodeid)
 {
     struct srrp_stream *ss = malloc(sizeof(*ss));
     bzero(ss, sizeof(*ss));
@@ -120,8 +121,8 @@ static struct srrp_stream *srrp_stream_new(
     ss->txbuf = vec_new(1, 2048);
     ss->rxbuf = vec_new(1, 2048);
 
-    ss->l_nodeid = l_nodeid;
-    ss->r_nodeid = 0;
+    ss->l_nodeid = str_new(l_nodeid);
+    ss->r_nodeid = str_new("");
     ss->sub_topics = vec_new(sizeof(void *), 3);
     ss->rxpac_unfin = NULL;
 
@@ -136,6 +137,9 @@ static void srrp_stream_drop(struct srrp_stream *ss)
 {
     vec_free(ss->txbuf);
     vec_free(ss->rxbuf);
+
+    str_free(ss->l_nodeid);
+    str_free(ss->r_nodeid);
 
     while (vsize(ss->sub_topics)) {
         str_t *tmp = 0;
@@ -156,7 +160,7 @@ static void srrp_stream_sync_nodeid(struct srrp_stream *ss)
 {
     LOG_TRACE("[%p:sync_nodeid] #%d sync", ss->router, cio_stream_get_fd(ss->stream));
 
-    struct srrp_packet *pac = srrp_new_ctrl(ss->l_nodeid, SRRP_CTRL_SYNC, "");
+    struct srrp_packet *pac = srrp_new_ctrl(sget(ss->l_nodeid), SRRP_CTRL_SYNC, "");
     cio_stream_send(ss->stream, srrp_get_raw(pac), srrp_get_packet_len(pac));
     srrp_free(pac);
     ss->ts_sync_out = time(0);
@@ -214,8 +218,8 @@ static void srrp_stream_parse_packet(struct srrp_stream *ss)
             assert(srrp_get_fin(ss->rxpac_unfin) == SRRP_FIN_0);
             if (srrp_get_leader(pac) != srrp_get_leader(ss->rxpac_unfin) ||
                 srrp_get_ver(pac) != srrp_get_ver(ss->rxpac_unfin) ||
-                srrp_get_srcid(pac) != srrp_get_srcid(ss->rxpac_unfin) ||
-                srrp_get_dstid(pac) != srrp_get_dstid(ss->rxpac_unfin) ||
+                strcmp(srrp_get_srcid(pac), srrp_get_srcid(ss->rxpac_unfin)) != 0 ||
+                strcmp(srrp_get_dstid(pac), srrp_get_dstid(ss->rxpac_unfin)) != 0 ||
                 strcmp(srrp_get_anchor(pac), srrp_get_anchor(ss->rxpac_unfin)) != 0) {
                 // drop pre pac
                 srrp_free(ss->rxpac_unfin);
@@ -311,12 +315,13 @@ static void srrp_stream_send_response(
  */
 
 static struct srrp_listener *srrp_listener_new(
-    struct srrp_router *router, struct cio_listener *listener, int owned, u32 l_nodeid)
+    struct srrp_router *router, struct cio_listener *listener,
+    int owned, const char *l_nodeid)
 {
     struct srrp_listener *sl = malloc(sizeof(*sl));
     bzero(sl, sizeof(*sl));
 
-    sl->l_nodeid = l_nodeid;
+    sl->l_nodeid = str_new(l_nodeid);
     sl->listener = listener;
     sl->owned = owned;
     INIT_LIST_HEAD(&sl->ln);
@@ -326,6 +331,8 @@ static struct srrp_listener *srrp_listener_new(
 
 static void srrp_listener_drop(struct srrp_listener *sl)
 {
+    str_free(sl->l_nodeid);
+
     if (sl->owned) {
         cio_listener_drop(sl->listener);
     }
@@ -377,7 +384,8 @@ void srrpr_drop(struct srrp_router *router)
 }
 
 void srrpr_add_listener(
-    struct srrp_router *router, struct cio_listener *listener, int owned, u32 nodeid)
+    struct srrp_router *router, struct cio_listener *listener,
+    int owned, const char *nodeid)
 {
     struct srrp_listener *sl = srrp_listener_new(router, listener, owned, nodeid);
     cio_register(router->ctx, cio_listener_get_fd(listener),
@@ -386,7 +394,8 @@ void srrpr_add_listener(
 }
 
 void srrpr_add_stream(
-    struct srrp_router *router, struct cio_stream *stream, int owned, u32 nodeid)
+    struct srrp_router *router, struct cio_stream *stream,
+    int owned, const char *nodeid)
 {
     struct srrp_stream *ss = srrp_stream_new(router, stream, owned, nodeid);
     cio_register(router->ctx, cio_stream_get_fd(stream),
@@ -395,36 +404,37 @@ void srrpr_add_stream(
 }
 
 static struct srrp_stream *
-srrpr_find_stream_by_l_nodeid(struct srrp_router *router, u32 nodeid)
+srrpr_find_stream_by_l_nodeid(struct srrp_router *router, const char *nodeid)
 {
-    if (nodeid == 0) return NULL;
+    if (nodeid == NULL) return NULL;
     struct srrp_stream *pos, *n;
     list_for_each_entry_safe(pos, n, &router->streams, ln) {
-        if (pos->l_nodeid == nodeid)
+        if (strcmp(sget(pos->l_nodeid), nodeid) == 0)
             return pos;
     }
     return NULL;
 }
 
 static struct srrp_stream *
-srrpr_find_stream_by_r_nodeid(struct srrp_router *router, u32 nodeid)
+srrpr_find_stream_by_r_nodeid(struct srrp_router *router, const char *nodeid)
 {
-    if (nodeid == 0) return NULL;
+    if (nodeid == NULL) return NULL;
     struct srrp_stream *pos, *n;
     list_for_each_entry_safe(pos, n, &router->streams, ln) {
-        if (pos->r_nodeid == nodeid)
+        if (strcmp(sget(pos->r_nodeid), nodeid) == 0)
             return pos;
     }
     return NULL;
 }
 
 static struct srrp_stream *
-srrpr_find_stream_by_nodeid(struct srrp_router *router, u32 nodeid)
+srrpr_find_stream_by_nodeid(struct srrp_router *router, const char *nodeid)
 {
-    if (nodeid == 0) return NULL;
+    if (nodeid == NULL) return NULL;
     struct srrp_stream *pos, *n;
     list_for_each_entry_safe(pos, n, &router->streams, ln) {
-        if (pos->l_nodeid == nodeid || pos->r_nodeid == nodeid)
+        if (strcmp(sget(pos->l_nodeid), nodeid) == 0 ||
+            strcmp(sget(pos->r_nodeid), nodeid) == 0)
             return pos;
     }
     return NULL;
@@ -433,18 +443,11 @@ srrpr_find_stream_by_nodeid(struct srrp_router *router, u32 nodeid)
 static void
 handle_ctrl(struct message *msg)
 {
-    if (srrp_get_srcid(msg->pac) == 0) {
-        struct srrp_packet *pac = srrp_new_ctrl(msg->stream->l_nodeid, SRRP_CTRL_NODEID_ZERO, "");
-        srrp_stream_send(msg->stream, pac);
-        srrp_free(pac);
-        msg->stream->state = SRRP_STREAM_ST_NODEID_ZERO;
-        goto out;
-    }
-
     struct srrp_stream *tmp = srrpr_find_stream_by_nodeid(
         msg->stream->router, srrp_get_srcid(msg->pac));
     if (tmp != NULL && tmp != msg->stream) {
-        struct srrp_packet *pac = srrp_new_ctrl(msg->stream->l_nodeid, SRRP_CTRL_NODEID_DUP, "");
+        struct srrp_packet *pac = srrp_new_ctrl(
+            sget(msg->stream->l_nodeid), SRRP_CTRL_NODEID_DUP, "");
         srrp_stream_send(msg->stream, pac);
         srrp_free(pac);
         msg->stream->state = SRRP_STREAM_ST_NODEID_DUP;
@@ -452,7 +455,8 @@ handle_ctrl(struct message *msg)
     }
 
     if (strcmp(srrp_get_anchor(msg->pac), SRRP_CTRL_SYNC) == 0) {
-        msg->stream->r_nodeid = srrp_get_srcid(msg->pac);
+        str_free(msg->stream->r_nodeid);
+        msg->stream->r_nodeid = str_new(srrp_get_srcid(msg->pac));
         msg->stream->state = SRRP_STREAM_ST_NODEID_NORMAL;
         msg->stream->ts_sync_in = time(0);
         goto out;
@@ -461,12 +465,6 @@ handle_ctrl(struct message *msg)
     if (strcmp(srrp_get_anchor(msg->pac), SRRP_CTRL_NODEID_DUP) == 0) {
         LOG_WARN("[%p:handle_ctrl] recv nodeid dup:%s",
                  msg->stream->router, srrp_get_raw(msg->pac));
-        goto out;
-    }
-
-    if (strcmp(srrp_get_anchor(msg->pac), SRRP_CTRL_NODEID_ZERO) == 0) {
-        LOG_ERROR("[%p:handle_ctrl] recv nodeid zero:%s",
-                  msg->stream->router, srrp_get_raw(msg->pac));
         goto out;
     }
 
@@ -521,7 +519,7 @@ static void forward_request_or_response(struct message *msg)
     struct srrp_stream *dst = NULL;
 
     dst = srrpr_find_stream_by_l_nodeid(msg->stream->router, srrp_get_dstid(msg->pac));
-    LOG_TRACE("[%p:forward_rr_l] dstid:%x, dst:%p",
+    LOG_TRACE("[%p:forward_rr_l] dstid:%s, dst:%p",
               msg->stream->router, srrp_get_dstid(msg->pac), dst);
     if (dst) {
         msg->forward = dst;
@@ -529,7 +527,7 @@ static void forward_request_or_response(struct message *msg)
     }
 
     dst = srrpr_find_stream_by_r_nodeid(msg->stream->router, srrp_get_dstid(msg->pac));
-    LOG_TRACE("[%p:forward_rr_r] dstid:%x, dst:%p",
+    LOG_TRACE("[%p:forward_rr_r] dstid:%s, dst:%p",
               msg->stream->router, srrp_get_dstid(msg->pac), dst);
     if (dst) {
         srrp_stream_send(dst, msg->pac);
@@ -668,7 +666,8 @@ static void srrpr_poll(struct srrp_router *router, u64 usec)
             case TOKEN_LISTENER: {
                 struct srrp_listener *sl = cioe_get_wrapper(ev);
                 struct cio_stream *new_stream = cio_listener_accept(sl->listener);
-                struct srrp_stream *ss = srrp_stream_new(router, new_stream, 1, sl->l_nodeid);
+                struct srrp_stream *ss = srrp_stream_new(
+                    router, new_stream, 1, sget(sl->l_nodeid));
                 list_add(&ss->ln, &router->streams);
                 cio_register(router->ctx, cio_stream_get_fd(new_stream),
                              TOKEN_STREAM, CIOF_READABLE | CIOF_WRITABLE, ss);
@@ -789,7 +788,8 @@ int srrpr_forward(struct srrp_router *router, struct srrp_packet *pac)
  * srrp_connect
  */
 
-struct srrp_connect *srrpc_new(struct cio_stream *stream, int owned, u32 nodeid)
+struct srrp_connect *
+srrpc_new(struct cio_stream *stream, int owned, const char *nodeid)
 {
     struct srrp_router *router = srrpr_new();
     srrpr_add_stream(router, stream, owned, nodeid);

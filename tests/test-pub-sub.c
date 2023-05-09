@@ -51,7 +51,7 @@ static void *publish_thread(void *args)
     rc = connect(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
     assert_true(rc == 0);
 
-    struct srrp_packet *pac_sync = srrp_new_ctrl(0x9999, SRRP_CTRL_SYNC, "");
+    struct srrp_packet *pac_sync = srrp_new_ctrl("9999", SRRP_CTRL_SYNC, "");
     send(fd, srrp_get_raw(pac_sync), srrp_get_packet_len(pac_sync), 0);
     srrp_free(pac_sync);
 
@@ -78,7 +78,7 @@ static void *subscribe_thread(void *args)
     struct cio_stream *stream = cio_stream_connect(TCP_ADDR);
     assert_true(stream);
 
-    struct srrp_connect *conn = srrpc_new(stream, 1, 0x6666);
+    struct srrp_connect *conn = srrpc_new(stream, 1, "6666");
 
     struct srrp_packet *pac_sub = srrp_new_subscribe("/test-topic", "{}");
     int rc = srrpc_send(conn, pac_sub);
@@ -127,7 +127,7 @@ static void test_pub_sub(void **status)
     assert_true(listener);
 
     struct srrp_router *router = srrpr_new();
-    srrpr_add_listener(router, listener, 1, 0x1);
+    srrpr_add_listener(router, listener, 1, "1");
 
     pthread_t subscribe_pid;
     pthread_create(&subscribe_pid, NULL, subscribe_thread, NULL);

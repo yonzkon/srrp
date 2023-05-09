@@ -14,9 +14,11 @@ struct srrp_router *srrpr_new();
 void srrpr_drop(struct srrp_router *router);
 
 void srrpr_add_listener(
-    struct srrp_router *router, struct cio_listener *listener, int owned, u32 nodeid);
+    struct srrp_router *router, struct cio_listener *listener,
+    int owned, const char *nodeid);
 void srrpr_add_stream(
-    struct srrp_router *router, struct cio_stream *stream, int owned, u32 nodeid);
+    struct srrp_router *router, struct cio_stream *stream,
+    int owned, const char *nodeid);
 
 int srrpr_wait(struct srrp_router *router, u64 usec);
 struct srrp_packet *srrpr_iter(struct srrp_router *router);

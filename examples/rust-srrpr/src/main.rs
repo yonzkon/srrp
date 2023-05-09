@@ -46,8 +46,8 @@ fn main() {
 
     // srrp init
     let mut router = srrp::SrrpRouter::new().unwrap();
-    router.add_listener(unix_server, 0xf1);
-    router.add_listener(tcp_server, 0xf2);
+    router.add_listener(unix_server, "f1");
+    router.add_listener(tcp_server, "f2");
 
     // signal
     ctrlc::set_handler(move || {
@@ -65,10 +65,10 @@ fn main() {
         }
 
         while let Some(pac) = router.iter() {
-            if pac.dstid == 0xf1 || pac.dstid == 0xf2 {
+            if pac.dstid == "f1" || pac.dstid == "f2" {
                 debug!("serv srrp:{}", std::str::from_utf8(&pac.raw).unwrap());
                 let resp = srrp::Srrp::new_response(
-                    pac.dstid, pac.srcid, &pac.anchor,
+                    &pac.dstid, &pac.srcid, &pac.anchor,
                     "j:{\"err\":404,\"msg\":\"Service not found\"}")
                     .unwrap();
                 info!("resp: srcid:{}, dstid:{}, {}?{}",

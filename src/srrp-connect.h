@@ -10,7 +10,8 @@ extern "C" {
 
 struct srrp_connect;
 
-struct srrp_connect *srrpc_new(struct cio_stream *stream, int owned, u32 nodeid);
+struct srrp_connect *
+srrpc_new(struct cio_stream *stream, int owned, const char *nodeid);
 void srrpc_drop(struct srrp_connect *conn);
 
 int srrpc_wait(struct srrp_connect *conn, u64 usec);
