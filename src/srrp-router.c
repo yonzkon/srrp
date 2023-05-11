@@ -407,9 +407,13 @@ static struct srrp_stream *
 srrpr_find_stream_by_l_nodeid(struct srrp_router *router, const char *nodeid)
 {
     if (nodeid == NULL) return NULL;
+
+    char tmp[SRRP_ID_MAX] = {0};
+    sscanf(nodeid, "%255[^@]", tmp);
+
     struct srrp_stream *pos, *n;
     list_for_each_entry_safe(pos, n, &router->streams, ln) {
-        if (strcmp(sget(pos->l_nodeid), nodeid) == 0)
+        if (strcmp(sget(pos->l_nodeid), tmp) == 0)
             return pos;
     }
     return NULL;
@@ -419,9 +423,13 @@ static struct srrp_stream *
 srrpr_find_stream_by_r_nodeid(struct srrp_router *router, const char *nodeid)
 {
     if (nodeid == NULL) return NULL;
+
+    char tmp[SRRP_ID_MAX] = {0};
+    sscanf(nodeid, "%255[^@]", tmp);
+
     struct srrp_stream *pos, *n;
     list_for_each_entry_safe(pos, n, &router->streams, ln) {
-        if (strcmp(sget(pos->r_nodeid), nodeid) == 0)
+        if (strcmp(sget(pos->r_nodeid), tmp) == 0)
             return pos;
     }
     return NULL;
@@ -431,10 +439,14 @@ static struct srrp_stream *
 srrpr_find_stream_by_nodeid(struct srrp_router *router, const char *nodeid)
 {
     if (nodeid == NULL) return NULL;
+
+    char tmp[SRRP_ID_MAX] = {0};
+    sscanf(nodeid, "%255[^@]", tmp);
+
     struct srrp_stream *pos, *n;
     list_for_each_entry_safe(pos, n, &router->streams, ln) {
-        if (strcmp(sget(pos->l_nodeid), nodeid) == 0 ||
-            strcmp(sget(pos->r_nodeid), nodeid) == 0)
+        if (strcmp(sget(pos->l_nodeid), tmp) == 0 ||
+            strcmp(sget(pos->r_nodeid), tmp) == 0)
             return pos;
     }
     return NULL;
