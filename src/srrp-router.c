@@ -26,6 +26,7 @@
 enum message_state {
     MESSAGE_ST_NONE = 0,
     MESSAGE_ST_WAITING,
+    MESSAGE_ST_PENDING,
     MESSAGE_ST_FINISHED,
     MESSAGE_ST_FORWARD,
 };
@@ -87,14 +88,24 @@ struct srrp_router {
  * message
  */
 
-static int message_is_finished(struct message *msg)
+static void message_forward(struct message *msg)
 {
-    return msg->state == MESSAGE_ST_FINISHED;
+    msg->state = MESSAGE_ST_FORWARD;
+}
+
+static void message_pending(struct message *msg)
+{
+    msg->state = MESSAGE_ST_PENDING;
 }
 
 static void message_finish(struct message *msg)
 {
     msg->state = MESSAGE_ST_FINISHED;
+}
+
+static int message_is_finished(struct message *msg)
+{
+    return msg->state == MESSAGE_ST_FINISHED;
 }
 
 static void message_drop(struct message *msg)
@@ -596,49 +607,50 @@ static void handle_message(struct srrp_router *router)
 {
     struct message *pos;
     list_for_each_entry(pos, &router->msgs, ln) {
-        if (message_is_finished(pos) || pos->state == MESSAGE_ST_WAITING)
-            continue;
+        if (pos->state == MESSAGE_ST_NONE || pos->state == MESSAGE_ST_FORWARD) {
+            assert(srrp_get_ver(pos->pac) == SRRP_VERSION);
+            LOG_TRACE("[%p:handle_message] #%d msg:%p, state:%d, raw:%s",
+                    router, cio_stream_get_fd(pos->stream->stream),
+                    pos, pos->state, srrp_get_raw(pos->pac));
 
-        assert(srrp_get_ver(pos->pac) == SRRP_VERSION);
-        LOG_TRACE("[%p:handle_message] #%d msg:%p, state:%d, raw:%s",
-                  router, cio_stream_get_fd(pos->stream->stream),
-                  pos, pos->state, srrp_get_raw(pos->pac));
+            if (srrp_get_leader(pos->pac) == SRRP_CTRL_LEADER) {
+                handle_ctrl(pos);
+                continue;
+            }
 
-        if (srrp_get_leader(pos->pac) == SRRP_CTRL_LEADER) {
-            handle_ctrl(pos);
-            continue;
+            if (pos->stream->r_nodeid == 0) {
+                LOG_DEBUG("[%p:handle_message] #%d nodeid zero: "
+                        "l_nodeid:%d, r_nodeid:%d, state:%d, raw:%s",
+                        router, cio_stream_get_fd(pos->stream->stream),
+                        pos->stream->l_nodeid, pos->stream->r_nodeid,
+                        pos->state, srrp_get_raw(pos->pac));
+                if (srrp_get_leader(pos->pac) == SRRP_REQUEST_LEADER)
+                    srrp_stream_send_response(
+                        pos->stream, pos->pac,
+                        "{\"err\":1, \"msg\":\"nodeid not sync\"}");
+                message_finish(pos);
+                continue;
+            }
+
+            if (srrp_get_leader(pos->pac) == SRRP_SUBSCRIBE_LEADER) {
+                handle_subscribe(pos);
+                continue;
+            }
+
+            if (srrp_get_leader(pos->pac) == SRRP_UNSUBSCRIBE_LEADER) {
+                handle_unsubscribe(pos);
+                continue;
+            }
+
+            if (pos->state == MESSAGE_ST_FORWARD) {
+                handle_forward(pos);
+                continue;
+            }
+
+            // for SRRP_REQUEST_LEADER & SRRP_RESPONSE_LEADER
+            pos->state = MESSAGE_ST_WAITING;
+            //LOG_TRACE("[%p:handle_message] set srrp_packet_in", stream->ctx);
         }
-
-        if (pos->stream->r_nodeid == 0) {
-            LOG_DEBUG("[%p:handle_message] #%d nodeid zero: "
-                      "l_nodeid:%d, r_nodeid:%d, state:%d, raw:%s",
-                      router, cio_stream_get_fd(pos->stream->stream),
-                      pos->stream->l_nodeid, pos->stream->r_nodeid,
-                      pos->state, srrp_get_raw(pos->pac));
-            if (srrp_get_leader(pos->pac) == SRRP_REQUEST_LEADER)
-                srrp_stream_send_response(
-                    pos->stream, pos->pac, "{\"err\":1, \"msg\":\"nodeid not sync\"}");
-            message_finish(pos);
-            continue;
-        }
-
-        if (srrp_get_leader(pos->pac) == SRRP_SUBSCRIBE_LEADER) {
-            handle_subscribe(pos);
-            continue;
-        }
-
-        if (srrp_get_leader(pos->pac) == SRRP_UNSUBSCRIBE_LEADER) {
-            handle_unsubscribe(pos);
-            continue;
-        }
-
-        if (pos->state == MESSAGE_ST_FORWARD) {
-            handle_forward(pos);
-            continue;
-        }
-
-        pos->state = MESSAGE_ST_WAITING;
-        //LOG_TRACE("[%p:handle_message] set srrp_packet_in", stream->ctx);
     }
 }
 
@@ -789,7 +801,7 @@ int srrpr_forward(struct srrp_router *router, struct srrp_packet *pac)
     struct message *pos;
     list_for_each_entry(pos, &router->msgs, ln) {
         if (pos->pac == pac) {
-            pos->state = MESSAGE_ST_FORWARD;
+            message_forward(pos);
             return 0;
         }
     }
@@ -823,6 +835,19 @@ struct srrp_packet *srrpc_iter(struct srrp_connect *conn)
     return srrpr_iter((struct srrp_router *)conn);
 }
 
+struct srrp_packet *srrpc_iter_pending(struct srrp_connect *conn)
+{
+    struct srrp_router *router = (struct srrp_router *)conn;
+    struct message *msg;
+    list_for_each_entry(msg, &router->msgs, ln) {
+        if (msg->state == MESSAGE_ST_PENDING) {
+            return msg->pac;
+        }
+    }
+
+    return NULL;
+}
+
 int srrpc_send(struct srrp_connect *conn, struct srrp_packet *pac)
 {
     struct srrp_router *router = (struct srrp_router *)conn;
@@ -831,4 +856,30 @@ int srrpc_send(struct srrp_connect *conn, struct srrp_packet *pac)
     struct srrp_stream *ss = container_of(router->streams.next, struct srrp_stream, ln);
     srrp_stream_send(ss, pac);
     return 0;
+}
+
+int srrpc_pending(struct srrp_connect *conn, struct srrp_packet *pac)
+{
+    struct srrp_router *router = (struct srrp_router *)conn;
+    struct message *pos;
+    list_for_each_entry(pos, &router->msgs, ln) {
+        if (pos->pac == pac) {
+            message_pending(pos);
+            return 0;
+        }
+    }
+    return -1;
+}
+
+int srrpc_finished(struct srrp_connect *conn, struct srrp_packet *pac)
+{
+    struct srrp_router *router = (struct srrp_router *)conn;
+    struct message *pos;
+    list_for_each_entry(pos, &router->msgs, ln) {
+        if (pos->pac == pac) {
+            message_finish(pos);
+            return 0;
+        }
+    }
+    return -1;
 }

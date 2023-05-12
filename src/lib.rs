@@ -76,8 +76,27 @@ impl SrrpConnect {
         }
     }
 
+    pub fn iter_pending(&self) -> Option<SrrpPacket> {
+        unsafe {
+            let pac = srrp_sys::srrpc_iter_pending(self.conn);
+            if pac.is_null() {
+                None
+            } else {
+                Some(Srrp::from_raw_packet(pac))
+            }
+        }
+    }
+
     pub fn send(&self, pac: &SrrpPacket) -> i32 {
         unsafe { return srrp_sys::srrpc_send(self.conn, pac.pac); }
+    }
+
+    pub fn pending(&self, pac: &SrrpPacket) -> i32 {
+        unsafe { return srrp_sys::srrpc_pending(self.conn, pac.pac); }
+    }
+
+    pub fn finished(&self, pac: &SrrpPacket) -> i32 {
+        unsafe { return srrp_sys::srrpc_finished(self.conn, pac.pac); }
     }
 }
 
