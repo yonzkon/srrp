@@ -16,7 +16,7 @@ static void test_srrp_base(void **status)
     struct srrp_packet *pac1 = NULL;
     struct srrp_packet *pac2 = NULL;
 
-    pac0 = srrp_new_request("3333", "8888", "/hello/x", "j:{\"err\":0,");
+    pac0 = srrp_new_request("3333", "8888", "/hello/x", "{\"err\":0,");
     pac1 = srrp_new_request("3333", "8888", "/hello/x", "\"msg\":\"ok\"}");
     srrp_set_fin(pac0, SRRP_FIN_0);
     assert_true(srrp_get_fin(pac0) == SRRP_FIN_0);
@@ -24,8 +24,14 @@ static void test_srrp_base(void **status)
 
     pac2 = srrp_cat(pac0, pac1);
     assert_true(strcmp((char *)srrp_get_payload(pac2),
-                       "j:{\"err\":0,\"msg\":\"ok\"}") == 0);
+                       "{\"err\":0,\"msg\":\"ok\"}") == 0);
     assert_true(srrp_get_fin(pac2) == 1);
+
+    assert_true(srrp_get_payload_type(pac0) == 'j');
+    assert_true(srrp_get_payload_type(pac1) == 'j');
+    assert_true(srrp_get_payload_type(pac2) == 'j');
+    srrp_set_payload_type(pac0, 'b');
+    assert_true(srrp_get_payload_type(pac0) == 'b');
 
     srrp_free(pac0);
     srrp_free(pac1);
@@ -41,7 +47,7 @@ static void test_srrp_request_reponse(void **status)
 
     // 1
     txpac = srrp_new_request("3333", "8888", "/hello/x",
-                             "j:{name:'yon',age:'18',equip:['hat','shoes']}");
+                             "{name:'yon',age:'18',equip:['hat','shoes']}");
     assert_true(txpac);
     rxpac = srrp_parse(srrp_get_raw(txpac), srrp_get_packet_len(txpac));
     assert_true(rxpac);
@@ -57,7 +63,7 @@ static void test_srrp_request_reponse(void **status)
 
     // 2
     txpac = srrp_new_response(
-        "8888", "3333", "/hello/x", "j:{err:0,errmsg:'succ',data:{msg:'world'}}");
+        "8888", "3333", "/hello/x", "{err:0,errmsg:'succ',data:{msg:'world'}}");
     rxpac = srrp_parse(srrp_get_raw(txpac), srrp_get_packet_len(txpac));
     assert_true(rxpac);
     assert_true(srrp_get_packet_len(rxpac) == srrp_get_packet_len(txpac));
@@ -95,9 +101,9 @@ static void test_srrp_subscribe_publish(void **status)
     struct srrp_packet *pub = NULL;
     struct srrp_packet *pac = NULL;
 
-    sub = srrp_new_subscribe("/motor/speed", "j:{ack:0,cache:100}");
-    unsub = srrp_new_unsubscribe("/motor/speed", "j:{}");
-    pub = srrp_new_publish("/motor/speed", "j:{speed:12,voltage:24}");
+    sub = srrp_new_subscribe("/motor/speed", "{ack:0,cache:100}");
+    unsub = srrp_new_unsubscribe("/motor/speed", "{}");
+    pub = srrp_new_publish("/motor/speed", "{speed:12,voltage:24}");
     assert_true(sub);
     assert_true(unsub);
     assert_true(pub);

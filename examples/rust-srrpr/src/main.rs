@@ -69,7 +69,7 @@ fn main() {
                 debug!("serv srrp:{}", std::str::from_utf8(&pac.raw).unwrap());
                 let resp = srrp::Srrp::new_response(
                     &pac.dstid, &pac.srcid, &pac.anchor,
-                    "j:{\"err\":404,\"msg\":\"Service not found\"}")
+                    "{\"err\":404,\"msg\":\"Service not found\"}")
                     .unwrap();
                 info!("resp: srcid:{}, dstid:{}, {}?{}",
                        resp.srcid, resp.dstid, resp.anchor, resp.payload);

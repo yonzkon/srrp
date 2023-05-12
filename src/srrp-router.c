@@ -499,7 +499,7 @@ handle_subscribe(struct message *msg)
     vpush(msg->stream->sub_topics, &topic);
 
     struct srrp_packet *pub = srrp_new_publish(
-        srrp_get_anchor(msg->pac), "j:{\"state\":\"sub\"}");
+        srrp_get_anchor(msg->pac), "{\"state\":\"sub\"}");
     srrp_stream_send(msg->stream, pub);
     srrp_free(pub);
 
@@ -519,7 +519,7 @@ handle_unsubscribe(struct message *msg)
     }
 
     struct srrp_packet *pub = srrp_new_publish(
-        srrp_get_anchor(msg->pac), "j:{\"state\":\"unsub\"}");
+        srrp_get_anchor(msg->pac), "{\"state\":\"unsub\"}");
     srrp_stream_send(msg->stream, pub);
     srrp_free(pub);
 
@@ -548,7 +548,7 @@ static void forward_request_or_response(struct message *msg)
     }
 
     srrp_stream_send_response(
-        msg->stream, msg->pac, "j:{\"err\":404,\"msg\":\"Destination not found\"}");
+        msg->stream, msg->pac, "{\"err\":404,\"msg\":\"Destination not found\"}");
     message_finish(msg);
     return;
 }
@@ -617,7 +617,7 @@ static void handle_message(struct srrp_router *router)
                       pos->state, srrp_get_raw(pos->pac));
             if (srrp_get_leader(pos->pac) == SRRP_REQUEST_LEADER)
                 srrp_stream_send_response(
-                    pos->stream, pos->pac, "j:{\"err\":1, \"msg\":\"nodeid not sync\"}");
+                    pos->stream, pos->pac, "{\"err\":1, \"msg\":\"nodeid not sync\"}");
             message_finish(pos);
             continue;
         }

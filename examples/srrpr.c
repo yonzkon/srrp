@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
                     srrp_get_dstid(pac),
                     srrp_get_srcid(pac),
                     srrp_get_anchor(pac),
-                    "j:{\"err\":404,\"msg\":\"Service not found\"}");
+                    "{\"err\":404,\"msg\":\"Service not found\"}");
                 srrpr_send(router, resp);
                 srrp_free(resp);
             } else {

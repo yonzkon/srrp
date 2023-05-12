@@ -97,13 +97,9 @@ fn main() {
                 while let Some(pac) = conn.iter() {
                     debug!("recv srrp:{}", std::str::from_utf8(&pac.raw).unwrap());
                     let mut payload = json::JsonValue::from("");
-                    if &pac.payload[0..2] == "j:" {
-                        match json::parse(&pac.payload[2..]) {
-                            Ok(j) => { payload = j; },
-                            Err(e) => { warn!("parse payload:{}", e); },
-                        }
-                    } else if &pac.payload[0..2] == "t:" {
-                        payload = json::JsonValue::from(&pac.payload[2..]);
+                    match json::parse(&pac.payload) {
+                        Ok(j) => { payload = j; },
+                        Err(e) => { warn!("parse payload:{}", e); },
                     }
                     let tmp = json::object!{
                         leader: pac.leader,

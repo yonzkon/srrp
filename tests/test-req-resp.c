@@ -141,7 +141,7 @@ static void *responser_thread(void *args)
                     assert_true(strcmp((char *)srrp_get_payload(pac), PAYLOAD) == 0);
                     struct srrp_packet *resp = srrp_new_response(
                         srrp_get_dstid(pac), srrp_get_srcid(pac), srrp_get_anchor(pac),
-                        "j:{err:0,errmsg:'succ',data:{msg:'world'}}");
+                        "{err:0,errmsg:'succ',data:{msg:'world'}}");
                     srrpr_send(router, resp);
                     srrp_free(resp);
                     responser_finished = 1;
