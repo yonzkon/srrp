@@ -13,6 +13,9 @@ if (BUILD_SHARED)
     set_target_properties(srrp PROPERTIES PUBLIC_HEADER "${INC}")
     set_target_properties(srrp PROPERTIES VERSION 0.1.0 SOVERSION 0)
     target_link_libraries(srrp cio) # for macos
+if (WIN32)
+    target_link_libraries(srrp regex Ws2_32) # for win32
+endif ()
     set(TARGET_SHARED srrp)
 endif ()
 

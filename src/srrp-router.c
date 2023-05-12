@@ -113,7 +113,7 @@ static struct srrp_stream *srrp_stream_new(
     int owned, const char *l_nodeid)
 {
     struct srrp_stream *ss = malloc(sizeof(*ss));
-    bzero(ss, sizeof(*ss));
+    memset(ss, 0, sizeof(*ss));
 
     ss->ts_sync_in = 0;
     ss->ts_sync_out = 0;
@@ -319,7 +319,7 @@ static struct srrp_listener *srrp_listener_new(
     int owned, const char *l_nodeid)
 {
     struct srrp_listener *sl = malloc(sizeof(*sl));
-    bzero(sl, sizeof(*sl));
+    memset(sl, 0, sizeof(*sl));
 
     sl->l_nodeid = str_new(l_nodeid);
     sl->listener = listener;
@@ -349,7 +349,7 @@ struct srrp_router *srrpr_new()
 {
     struct srrp_router *router = malloc(sizeof(*router));
     assert(router);
-    bzero(router, sizeof(*router));
+    memset(router, 0, sizeof(*router));
 
     router->ctx = cio_new();
     INIT_LIST_HEAD(&router->listeners);

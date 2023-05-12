@@ -120,7 +120,7 @@ struct srrp_packet *srrp_move(struct srrp_packet *fst, struct srrp_packet *snd)
     str_free(snd->anchor);
     vec_free(snd->raw);
     *snd = *fst;
-    bzero(fst, sizeof(*fst));
+    memset(fst, 0, sizeof(*fst));
     free(fst);
     return snd;
 }
