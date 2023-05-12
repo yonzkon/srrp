@@ -9,6 +9,10 @@ static EXIT_FLAG: Mutex<i32> = Mutex::new(0);
 struct Args {
     #[arg(short, long, action = clap::ArgAction::Count)]
     debug: u8,
+    #[clap(short, long, default_value = "unix://tmp/srrp")]
+    unix_addr: String,
+    #[clap(short, long, default_value = "tcp://127.0.0.1:3824")]
+    tcp_addr: String,
 }
 
 fn main() {
@@ -37,11 +41,11 @@ fn main() {
     simple_logger::SimpleLogger::new().env().init().unwrap();
 
     // unix_server init
-    let unix_server = cio::CioListener::bind("unix://tmp/srrp")
+    let unix_server = cio::CioListener::bind(&args.unix_addr)
         .expect("listen unix socket failed");
 
     // tcp_server init
-    let tcp_server = cio::CioListener::bind("tcp://127.0.0.1:3824")
+    let tcp_server = cio::CioListener::bind(&args.tcp_addr)
         .expect("listen tcp socket failed");
 
     // srrp init
