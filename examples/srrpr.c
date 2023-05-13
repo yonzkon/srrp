@@ -58,8 +58,8 @@ int main(int argc, char *argv[])
     LOG_INFO("open tcp socket #%d at %s", cio_listener_get_fd(tcp_listener), opt_string(opt));
 
     struct srrp_router *router = srrpr_new();
-    srrpr_add_listener(router, unix_listener, 1, "f1");
-    srrpr_add_listener(router, tcp_listener, 1, "f2");
+    srrpr_add_listener(router, unix_listener, 1, "router-unix");
+    srrpr_add_listener(router, tcp_listener, 1, "router-tcp");
 
     for (;;) {
         if (exit_flag == 1) break;
@@ -70,21 +70,11 @@ int main(int argc, char *argv[])
 
         struct srrp_packet *pac;
         while ((pac = srrpr_iter(router))) {
-            if (strcmp(srrp_get_dstid(pac), "f1") == 0 ||
-                strcmp(srrp_get_dstid(pac), "f2") == 0) {
-                LOG_INFO("serv packet: %s", srrp_get_raw(pac));
-                struct srrp_packet *resp = srrp_new_response(
-                    srrp_get_dstid(pac),
-                    srrp_get_srcid(pac),
-                    srrp_get_anchor(pac),
-                    "{\"err\":404,\"msg\":\"Service not found\"}");
-                srrpr_send(router, resp);
-                srrp_free(resp);
-            } else {
-                LOG_INFO("forward packet: %s", srrp_get_raw(pac));
+            if (strcmp(srrp_get_dstid(pac), "router-unix") != 0 &&
+                strcmp(srrp_get_dstid(pac), "router-tcp") != 0) {
                 srrpr_forward(router, pac);
+                LOG_DEBUG("forward packet: %s", srrp_get_raw(pac));
             }
-
         }
     }
 

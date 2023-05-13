@@ -1,5 +1,5 @@
 use std::sync::Mutex;
-use log::{info, debug};
+use log::{debug};
 use clap::Parser;
 
 static EXIT_FLAG: Mutex<i32> = Mutex::new(0);
@@ -50,8 +50,8 @@ fn main() {
 
     // srrp init
     let mut router = srrp::SrrpRouter::new().unwrap();
-    router.add_listener(unix_server, "f1");
-    router.add_listener(tcp_server, "f2");
+    router.add_listener(unix_server, "router-unix");
+    router.add_listener(tcp_server, "router-tcp");
 
     // signal
     ctrlc::set_handler(move || {
@@ -69,16 +69,7 @@ fn main() {
         }
 
         while let Some(pac) = router.iter() {
-            if pac.dstid == "f1" || pac.dstid == "f2" {
-                debug!("serv srrp:{}", std::str::from_utf8(&pac.raw).unwrap());
-                let resp = srrp::Srrp::new_response(
-                    &pac.dstid, &pac.srcid, &pac.anchor,
-                    "{\"err\":404,\"msg\":\"Service not found\"}")
-                    .unwrap();
-                info!("resp: srcid:{}, dstid:{}, {}?{}",
-                       resp.srcid, resp.dstid, resp.anchor, resp.payload);
-                router.send(&resp);
-            } else {
+            if pac.dstid != "router-unix" && pac.dstid != "router-tcp" {
                 debug!("forward srrp:{}", std::str::from_utf8(&pac.raw).unwrap());
                 router.forward(&pac);
             }
