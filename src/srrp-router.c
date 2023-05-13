@@ -19,6 +19,7 @@
 #define STREAM_SYNC_TIMEOUT (1000 * 5) /*ms*/
 #define PARSE_PACKET_TIMEOUT 1000 /*ms*/
 #define PAYLOAD_LIMIT 1400
+#define WAIT_TIMEOUT (10 * 1000)
 
 #define TOKEN_LISTENER 1
 #define TOKEN_STREAM 2
@@ -828,6 +829,12 @@ void srrpc_drop(struct srrp_connect *conn)
 int srrpc_wait(struct srrp_connect *conn, u64 usec)
 {
     return srrpr_wait((struct srrp_router *)conn, usec);
+}
+
+int srrpc_wait_until(struct srrp_connect *conn)
+{
+    while (srrpc_wait(conn, WAIT_TIMEOUT) == 0);
+    return 0;
 }
 
 struct srrp_packet *srrpc_iter(struct srrp_connect *conn)

@@ -65,6 +65,10 @@ impl SrrpConnect {
         unsafe { return srrp_sys::srrpc_wait(self.conn, usec); }
     }
 
+    pub fn wait_until(&self) -> i32 {
+        unsafe { return srrp_sys::srrpc_wait_until(self.conn); }
+    }
+
     pub fn iter(&self) -> Option<SrrpPacket> {
         unsafe {
             let pac = srrp_sys::srrpc_iter(self.conn);
@@ -155,7 +159,6 @@ impl SrrpRouter {
             self.streams.push(stream);
         }
     }
-
 
     pub fn wait(&self, usec: u64) -> i32 {
         unsafe { return srrp_sys::srrpr_wait(self.router, usec); }
