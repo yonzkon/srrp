@@ -837,6 +837,26 @@ int srrpc_wait_until(struct srrp_connect *conn)
     return 0;
 }
 
+struct srrp_packet *srrpc_wait_response(
+    struct srrp_connect *conn, const char *srcid, const char *anchor)
+{
+    for (;;) {
+        srrpc_wait_until(conn);
+
+        struct srrp_router *router = (struct srrp_router *)conn;
+        struct message *msg;
+        list_for_each_entry(msg, &router->msgs, ln) {
+            if (msg->state == MESSAGE_ST_WAITING &&
+                srrp_get_leader(msg->pac) == SRRP_RESPONSE_LEADER &&
+                strcmp(srrp_get_srcid(msg->pac), srcid) == 0 &&
+                strcmp(srrp_get_anchor(msg->pac), anchor) == 0) {
+                message_finish(msg);
+                return msg->pac;
+            }
+        }
+    }
+}
+
 struct srrp_packet *srrpc_iter(struct srrp_connect *conn)
 {
     return srrpr_iter((struct srrp_router *)conn);

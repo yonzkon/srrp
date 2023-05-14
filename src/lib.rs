@@ -46,8 +46,8 @@ impl Drop for SrrpConnect {
 
 impl SrrpConnect {
     pub fn new(stream: CioStream, nodeid: &str) -> Result<SrrpConnect, Error> {
+        let nodeid = std::ffi::CString::new(nodeid).unwrap();
         unsafe {
-            let nodeid = std::ffi::CString::new(nodeid).unwrap();
             let conn = srrp_sys::srrpc_new(
                 stream.stream as *mut _, 0, nodeid.as_ptr() as *const i8);
             if conn.is_null() {
@@ -67,6 +67,23 @@ impl SrrpConnect {
 
     pub fn wait_until(&self) -> i32 {
         unsafe { return srrp_sys::srrpc_wait_until(self.conn); }
+    }
+
+    pub fn wait_response(&self, srcid: &str, anchor: &str) -> Option<SrrpPacket> {
+        let srcid = std::ffi::CString::new(srcid).unwrap();
+        let anchor = std::ffi::CString::new(anchor).unwrap();
+        unsafe {
+            let pac = srrp_sys::srrpc_wait_response(
+                self.conn,
+                srcid.as_ptr() as *const i8,
+                anchor.as_ptr() as *const i8,
+            );
+            if pac.is_null() {
+                None
+            } else {
+                Some(Srrp::from_raw_packet(pac))
+            }
+        }
     }
 
     pub fn iter(&self) -> Option<SrrpPacket> {
@@ -143,8 +160,8 @@ impl SrrpRouter {
     }
 
     pub fn add_listener(&mut self, listener: CioListener, nodeid: &str) {
+        let nodeid = std::ffi::CString::new(nodeid).unwrap();
         unsafe {
-            let nodeid = std::ffi::CString::new(nodeid).unwrap();
             srrp_sys::srrpr_add_listener(
                 self.router, listener.listener as *mut _, 0, nodeid.as_ptr() as *const i8);
             self.listeners.push(listener);
@@ -152,8 +169,8 @@ impl SrrpRouter {
     }
 
     pub fn add_stream(&mut self, stream: CioStream, nodeid: &str) {
+        let nodeid = std::ffi::CString::new(nodeid).unwrap();
         unsafe {
-            let nodeid = std::ffi::CString::new(nodeid).unwrap();
             srrp_sys::srrpr_add_stream(
                 self.router, stream.stream as *mut _, 0, nodeid.as_ptr() as *const i8);
             self.streams.push(stream);
@@ -275,10 +292,10 @@ impl Srrp {
 
     pub fn new(leader: char, fin: u8, srcid: &str, dstid: &str, anchor: &str, payload: &str)
                -> Option<SrrpPacket> {
+        let srcid = std::ffi::CString::new(srcid).unwrap();
+        let dstid = std::ffi::CString::new(dstid).unwrap();
+        let anchor = std::ffi::CString::new(anchor).unwrap();
         unsafe {
-            let srcid = std::ffi::CString::new(srcid).unwrap();
-            let dstid = std::ffi::CString::new(dstid).unwrap();
-            let anchor = std::ffi::CString::new(anchor).unwrap();
             let pac = srrp_sys::srrp_new(
                 leader as i8, fin,
                 srcid.as_ptr() as *const i8,
