@@ -9,23 +9,23 @@ extern "C" {
 #endif
 
 /**
- * Ctrl: =[fin][ver2][payload_type]#[packet_len]#[payload_len]#[srcid]#0:[/anchor]?[payload_type]:[payload]\0<crc16>\0
+ * Ctrl: =[fin][ver2][payload_type]#[packet_len]#[payload_len]#[srcid]#0:[/anchor]?[payload]\0<crc16>\0
  *   =101j#[packet_len]#[payload_len]#F1#0:/sync?{"alias":["google.com","a.google.com","b.google.com"]}\0<crc16>\0
  *
- * Request: >[fin][ver2][payload_type]#[packet_len]#[payload_len]#[srcid]#[dstid]:[/anchor]?[payload_type]:[payload]\0<crc16>\0
+ * Request: >[fin][ver2][payload_type]#[packet_len]#[payload_len]#[srcid]#[dstid]:[/anchor]?[payload]\0<crc16>\0
  *   >001j#[packet_len]#[payload_len]#F1#8A8F:/echo?{"err":0,\0<crc16>\0
- *   >101j#[packet_len]#[payload_len]#F1#8A8F:/echo?{"msg":"ok"}\0<crc16>\0
+ *   >101j#[packet_len]#[payload_len]#F1#8A8F:/echo?"msg":"ok"}\0<crc16>\0
  *
- * Response: <[fin][ver2][payload_type]#[packet_len]#[payload_len]#[srcid]#[dstid]:[/anchor]?[payload_type]:[payload]\0<crc16>\0
+ * Response: <[fin][ver2][payload_type]#[packet_len]#[payload_len]#[srcid]#[dstid]:[/anchor]?[payload]\0<crc16>\0
  *   <101j#[packet_len]#[payload_len]#8A8F#F1:/echo?{"err":0,"msg":"ok","v":"good news"}\0<crc16>\0
  *
- * Subscribe: +[fin][ver2][payload_type]#[packet_len]#[payload_len]:[/anchor]?[payload_type]:[payload]\0<crc16>\0
+ * Subscribe: +[fin][ver2][payload_type]#[packet_len]#[payload_len]:[/anchor]?[payload]\0<crc16>\0
  *   +101j#[packet_len]#0:/motor/speed\0<crc16>\0
  *
- * UnSubscribe: -[fin][ver2][payload_type]#[packet_len]#[payload_len]:[/anchor]?[payload_type]:[payload]\0<crc16>\0
+ * UnSubscribe: -[fin][ver2][payload_type]#[packet_len]#[payload_len]:[/anchor]?[payload]\0<crc16>\0
  *   -101j#[packet_len]#0:/motor/speed\0<crc16>\0
  *
- * Publish: @[fin][ver2][payload_type]#[packet_len]#[payload_len]:[/anchor]?[payload_type]:[payload]\0<crc16>\0
+ * Publish: @[fin][ver2][payload_type]#[packet_len]#[payload_len]:[/anchor]?[payload]\0<crc16>\0
  *   @101j#[packet_len]#[payload_len]:/motor/speed?{"speed":12,"voltage":24}\0<crc16>\0
  */
 

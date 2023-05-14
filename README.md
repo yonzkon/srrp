@@ -48,6 +48,29 @@ https://ci.appveyor.com/api/projects/status/vilmj1a3q2qg2ph0?svg=true)](https://
 
 Lightweight message broker that use simple request response protocol(srrp).
 
+## Packet format
+
+```
+Ctrl: =[fin][ver2][payload_type]#[packet_len]#[payload_len]#[srcid]#0:[/anchor]?[payload]\0<crc16>\0
+  =101j#[packet_len]#[payload_len]#F1#0:/sync?{"alias":["google.com","a.google.com","b.google.com"]}\0<crc16>\0
+
+Request: >[fin][ver2][payload_type]#[packet_len]#[payload_len]#[srcid]#[dstid]:[/anchor]?[payload]\0<crc16>\0
+  >001j#[packet_len]#[payload_len]#F1#8A8F:/echo?{"err":0,\0<crc16>\0
+  >101j#[packet_len]#[payload_len]#F1#8A8F:/echo?"msg":"ok"}\0<crc16>\0
+
+Response: <[fin][ver2][payload_type]#[packet_len]#[payload_len]#[srcid]#[dstid]:[/anchor]?[payload]\0<crc16>\0
+  <101j#[packet_len]#[payload_len]#8A8F#F1:/echo?{"err":0,"msg":"ok","v":"good news"}\0<crc16>\0
+
+Subscribe: +[fin][ver2][payload_type]#[packet_len]#[payload_len]:[/anchor]?[payload]\0<crc16>\0
+  +101j#[packet_len]#0:/motor/speed\0<crc16>\0
+
+UnSubscribe: -[fin][ver2][payload_type]#[packet_len]#[payload_len]:[/anchor]?[payload]\0<crc16>\0
+  -101j#[packet_len]#0:/motor/speed\0<crc16>\0
+
+Publish: @[fin][ver2][payload_type]#[packet_len]#[payload_len]:[/anchor]?[payload]\0<crc16>\0
+  @101j#[packet_len]#[payload_len]:/motor/speed?{"speed":12,"voltage":24}\0<crc16>\0
+```
+
 ## Dependencies
 
 - [Cio](https://github.com/yonzkon/cio)
