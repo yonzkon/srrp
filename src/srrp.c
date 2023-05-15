@@ -1,11 +1,11 @@
-#include "srrp.h"
 #include <assert.h>
+#include <errno.h>
 #include <ctype.h>
-#include <inttypes.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <errno.h>
+
+#include "srrp.h"
 #include "crc16.h"
 #include "str.h"
 #include "vec.h"

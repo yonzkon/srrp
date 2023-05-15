@@ -1,4 +1,3 @@
-#include "srrp-router.h"
 #include <sys/time.h>
 #include <assert.h>
 #include <ctype.h>
@@ -9,8 +8,8 @@
 #include <regex.h>
 #include <cio.h>
 #include <cio-stream.h>
-#include "srrp.h"
-#include "srrp-types.h"
+
+#include "srrp-router.h"
 #include "srrp-log.h"
 #include "list.h"
 #include "vec.h"

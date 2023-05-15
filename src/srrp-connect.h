@@ -2,6 +2,7 @@
 #define __SRRP_CONNECT_H
 
 #include <cio-stream.h>
+#include "srrp.h"
 #include "srrp-types.h"
 
 #ifdef __cplusplus
