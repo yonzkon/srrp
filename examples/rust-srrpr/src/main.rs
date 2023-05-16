@@ -9,7 +9,7 @@ static EXIT_FLAG: Mutex<i32> = Mutex::new(0);
 struct Args {
     #[arg(short, long, action = clap::ArgAction::Count)]
     debug: u8,
-    #[clap(short, long, default_value = "unix://tmp/srrp")]
+    #[clap(short, long, default_value = "unix:///tmp/srrp")]
     unix_addr: String,
     #[clap(short, long, default_value = "tcp://127.0.0.1:3824")]
     tcp_addr: String,

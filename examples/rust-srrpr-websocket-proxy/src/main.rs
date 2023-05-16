@@ -10,6 +10,10 @@ use tungstenite::protocol::Message;
 struct Args {
     #[arg(short, long, action = clap::ArgAction::Count)]
     debug: u8,
+    #[clap(short, long, default_value = "unix:///tmp/srrp")]
+    srrp_addr: String,
+    #[clap(short, long, default_value = "0.0.0.0:3825")]
+    ws_addr: String,
 }
 
 fn main() {
@@ -37,9 +41,10 @@ fn main() {
     // logger init
     simple_logger::SimpleLogger::new().env().init().unwrap();
 
-    let server = TcpListener::bind("0.0.0.0:3825").unwrap();
+    let server = TcpListener::bind(&args.ws_addr).unwrap();
     for stream in server.incoming() {
         spawn (move || {
+            let args = Args::parse();
             let mut ws = accept(stream.unwrap()).unwrap();
             ws.get_mut().set_nonblocking(true)
                 .expect("set_nonblocking call failed");
@@ -49,7 +54,7 @@ fn main() {
                 nodeid = rand::random::<u32>();
             }
 
-            let client = cio::CioStream::connect("unix://tmp/srrp")
+            let client = cio::CioStream::connect(&args.srrp_addr)
                 .expect("connect unix socket failed");
             let conn = srrp::SrrpConnect::new(client, &nodeid.to_string()).unwrap();
 

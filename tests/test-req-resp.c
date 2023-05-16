@@ -18,7 +18,7 @@
 #include "srrp-log.h"
 #include "crc16.h"
 
-#define UNIX_ADDR "unix:/./test_unix"
+#define UNIX_ADDR "unix://./test_unix"
 
 const char *PAYLOAD = "t:hello";
 const char *PAYLOAD2 =

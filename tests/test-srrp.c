@@ -8,8 +8,6 @@
 #include "srrp.h"
 #include "crc16.h"
 
-#define UNIX_ADDR "test_apisink_unix"
-
 static void test_srrp_base(void **status)
 {
     struct srrp_packet *pac0 = NULL;

@@ -18,7 +18,6 @@
 #include "srrp-log.h"
 #include "crc16.h"
 
-#define UNIX_ADDR "./test_unix"
 #define TCP_ADDR "tcp://127.0.0.1:1224"
 
 /**

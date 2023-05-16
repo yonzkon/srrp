@@ -2,7 +2,7 @@
 
 To write a srrp router in C.
 ```c
-struct cio_listener *unix_listener = cio_listener_bind("unix://tmp/srrp");
+struct cio_listener *unix_listener = cio_listener_bind("unix:///tmp/srrp");
 struct cio_listener *tcp_listener = cio_listener_bind("tcp://127.0.0.1:3824");
 
 struct srrp_router *router = srrpr_new();
@@ -27,7 +27,7 @@ srrpr_drop(router); // auto close all fd
 
 To write a simple srrp client in Rust.
 ```rust
-let client = cio::CioStream::connect("unix://tmp/srrp").unwrap();
+let client = cio::CioStream::connect("unix:///tmp/srrp").unwrap();
 let conn = srrp::SrrpConnect::new(client, "test-client").unwrap();
 
 // send back to self
