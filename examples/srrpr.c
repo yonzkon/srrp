@@ -8,7 +8,6 @@
 #include <signal.h>
 
 #include <cio-stream.h>
-#include <srrp.h>
 #include <srrp-router.h>
 #include <srrp-log.h>
 #include "opt.h"
@@ -23,7 +22,8 @@ static void signal_handler(int sig)
 
 static struct opt opttab[] = {
     INIT_OPT_BOOL("-h", "help", false, "print this usage"),
-    INIT_OPT_BOOL("-D", "debug", false, "enable debug [defaut: false]"),
+    INIT_OPT_BOOL("-d", "debug", false, "enable debug [defaut: false]"),
+    INIT_OPT_BOOL("-D", "trace", false, "enable trace [defaut: false]"),
     INIT_OPT_BOOL("-r", "srrp_mode", true, "enable srrp mode [defaut: true]"),
     INIT_OPT_STRING("-u:", "unix", "unix:///tmp/srrp", "unix socket addr"),
     INIT_OPT_STRING("-t:", "tcp", "tcp://127.0.0.1:3824", "tcp socket addr"),
@@ -38,6 +38,9 @@ int main(int argc, char *argv[])
 
     struct opt *opt;
     opt = find_opt("debug", opttab);
+    if (opt_bool(opt))
+        log_set_level(LOG_LV_DEBUG);
+    opt = find_opt("trace", opttab);
     if (opt_bool(opt))
         log_set_level(LOG_LV_TRACE);
 
