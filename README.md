@@ -6,8 +6,8 @@ struct cio_listener *unix_listener = cio_listener_bind("unix:///tmp/srrp");
 struct cio_listener *tcp_listener = cio_listener_bind("tcp://127.0.0.1:3824");
 
 struct srrp_router *router = srrpr_new();
-srrpr_add_listener(router, unix_listener, 1, "router-unix");
-srrpr_add_listener(router, tcp_listener, 1, "router-tcp");
+srrpr_add_listener(router, unix_listener, "router-unix");
+srrpr_add_listener(router, tcp_listener, "router-tcp");
 
 for (;;) {
     if (srrpr_wait(router, 10 * 1000) == 0) {
@@ -22,7 +22,9 @@ for (;;) {
     }
 }
 
-srrpr_drop(router); // auto close all fd
+srrpr_drop(router);
+cio_listener_drop(unix_listener);
+cio_listener_drop(tcp_listener);
 ```
 
 To write a simple srrp client in Rust.

@@ -11,10 +11,10 @@ extern "C" {
 
 struct srrp_connect;
 
-struct srrp_connect *
-srrpc_new(struct cio_stream *stream, int owned, const char *nodeid);
+struct srrp_connect *srrpc_new(struct cio_stream *stream, const char *nodeid);
 void srrpc_drop(struct srrp_connect *conn);
 
+struct cio_stream *srrpc_check_fin(struct srrp_connect *conn);
 int srrpc_wait(struct srrp_connect *conn, u64 usec);
 int srrpc_wait_until(struct srrp_connect *conn);
 struct srrp_packet *srrpc_wait_response(

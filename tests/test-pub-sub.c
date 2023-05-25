@@ -12,6 +12,7 @@
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <cio-stream.h>
 #include "srrp.h"
 #include "srrp-router.h"
 #include "srrp-connect.h"
@@ -77,7 +78,7 @@ static void *subscribe_thread(void *args)
     struct cio_stream *stream = cio_stream_connect(TCP_ADDR);
     assert_true(stream);
 
-    struct srrp_connect *conn = srrpc_new(stream, 1, "6666");
+    struct srrp_connect *conn = srrpc_new(stream, "6666");
 
     struct srrp_packet *pac_sub = srrp_new_subscribe("/test-topic", "{}");
     int rc = srrpc_send(conn, pac_sub);
@@ -87,6 +88,8 @@ static void *subscribe_thread(void *args)
     for (;;) {
         if (subscribe_finished == 2)
             break;
+
+        assert_false(srrpc_check_fin(conn));
 
         if (srrpc_wait(conn, 100 * 1000) == 0)
             continue;
@@ -110,6 +113,7 @@ static void *subscribe_thread(void *args)
     sleep(1);
 
     srrpc_drop(conn);
+    cio_stream_drop(stream);
     LOG_INFO("subscribe exit");
     return NULL;
 }
@@ -126,7 +130,7 @@ static void test_pub_sub(void **status)
     assert_true(listener);
 
     struct srrp_router *router = srrpr_new();
-    srrpr_add_listener(router, listener, 1, "1");
+    srrpr_add_listener(router, listener, "1");
 
     pthread_t subscribe_pid;
     pthread_create(&subscribe_pid, NULL, subscribe_thread, NULL);
@@ -137,6 +141,12 @@ static void test_pub_sub(void **status)
     for (;;) {
         if (publish_finished && subscribe_finished == 2)
             break;
+
+        for (;;) {
+            struct cio_stream *stream = srrpr_check_fin(router);
+            if (!stream) break;
+            cio_stream_drop(stream);
+        }
 
         if (srrpr_wait(router, 100 * 1000) == 0)
             continue;
@@ -154,6 +164,7 @@ static void test_pub_sub(void **status)
     pthread_join(subscribe_pid, NULL);
 
     srrpr_drop(router);
+    cio_listener_drop(listener);
 }
 
 int main(void)

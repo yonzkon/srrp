@@ -49,7 +49,7 @@ impl SrrpConnect {
         let nodeid = std::ffi::CString::new(nodeid).unwrap();
         unsafe {
             let conn = srrp_sys::srrpc_new(
-                stream.stream as *mut _, 0, nodeid.as_ptr() as *const i8);
+                stream.stream as *mut _, nodeid.as_ptr() as *const i8);
             if conn.is_null() {
                 Err(Error::last_os_error())
             } else {
@@ -57,6 +57,17 @@ impl SrrpConnect {
                     conn: conn,
                     stream: stream,
                 })
+            }
+        }
+    }
+
+    pub fn check_fin(&self) -> Option<CioStream> {
+        unsafe {
+            let stream = srrp_sys::srrpc_check_fin(self.conn);
+            if stream.is_null() {
+                None
+            } else {
+                Some(CioStream { stream: stream as _, auto_drop: false })
             }
         }
     }
@@ -163,7 +174,7 @@ impl SrrpRouter {
         let nodeid = std::ffi::CString::new(nodeid).unwrap();
         unsafe {
             srrp_sys::srrpr_add_listener(
-                self.router, listener.listener as *mut _, 0, nodeid.as_ptr() as *const i8);
+                self.router, listener.listener as *mut _, nodeid.as_ptr() as *const i8);
             self.listeners.push(listener);
         }
     }
@@ -172,8 +183,30 @@ impl SrrpRouter {
         let nodeid = std::ffi::CString::new(nodeid).unwrap();
         unsafe {
             srrp_sys::srrpr_add_stream(
-                self.router, stream.stream as *mut _, 0, nodeid.as_ptr() as *const i8);
+                self.router, stream.stream as *mut _, nodeid.as_ptr() as *const i8);
             self.streams.push(stream);
+        }
+    }
+
+    pub fn check_fin(&self) -> Option<CioStream> {
+        unsafe {
+            let stream = srrp_sys::srrpr_check_fin(self.router);
+            if stream.is_null() {
+                None
+            } else {
+                Some(CioStream { stream: stream as _, auto_drop: false })
+            }
+        }
+    }
+
+    pub fn check_accept(&self) -> Option<CioStream> {
+        unsafe {
+            let stream = srrp_sys::srrpr_check_accept(self.router);
+            if stream.is_null() {
+                None
+            } else {
+                Some(CioStream { stream: stream as _, auto_drop: false })
+            }
         }
     }
 

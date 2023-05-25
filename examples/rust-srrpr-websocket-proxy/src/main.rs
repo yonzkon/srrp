@@ -1,4 +1,4 @@
-use log::{info, debug, warn};
+use log::{info, debug, warn, error};
 use clap::Parser;
 use std::net::TcpListener;
 use std::thread::spawn;
@@ -91,6 +91,11 @@ fn main() {
                         }
                     },
                     Err(_) => ()
+                }
+
+                if let Some(_) = conn.check_fin() {
+                    error!("srrp connection break down, exit ...");
+                    std::process::exit(-1);
                 }
 
                 // wait for srrp packet, idle in 10ms

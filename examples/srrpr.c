@@ -50,7 +50,8 @@ int main(int argc, char *argv[])
         perror("unix_listener_bind");
         exit(-1);
     }
-    LOG_INFO("open unix socket #%d at %s", cio_listener_getfd(unix_listener), opt_string(opt));
+    LOG_INFO("open unix socket #%d at %s",
+             cio_listener_getfd(unix_listener), opt_string(opt));
 
     opt = find_opt("tcp", opttab);
     struct cio_listener *tcp_listener = cio_listener_bind(opt_string(opt));
@@ -58,14 +59,27 @@ int main(int argc, char *argv[])
         perror("tcp_listener_bind");
         exit(-1);
     }
-    LOG_INFO("open tcp socket #%d at %s", cio_listener_getfd(tcp_listener), opt_string(opt));
+    LOG_INFO("open tcp socket #%d at %s",
+             cio_listener_getfd(tcp_listener), opt_string(opt));
 
     struct srrp_router *router = srrpr_new();
-    srrpr_add_listener(router, unix_listener, 1, "router-unix");
-    srrpr_add_listener(router, tcp_listener, 1, "router-tcp");
+    srrpr_add_listener(router, unix_listener, "router-unix");
+    srrpr_add_listener(router, tcp_listener, "router-tcp");
 
     for (;;) {
         if (exit_flag == 1) break;
+
+        for (;;) {
+            struct cio_stream *stream = srrpr_check_fin(router);
+            if (!stream) break;
+            LOG_INFO("close socket #%d", cio_stream_getfd(stream));
+        }
+
+        for (;;) {
+            struct cio_stream *stream = srrpr_check_accept(router);
+            if (!stream) break;
+            LOG_INFO("accept socket #%d", cio_stream_getfd(stream));
+        }
 
         if (srrpr_wait(router, 10 * 1000) == 0) {
             continue;
@@ -82,5 +96,7 @@ int main(int argc, char *argv[])
     }
 
     srrpr_drop(router); // auto close all fd
+    cio_listener_drop(unix_listener);
+    cio_listener_drop(tcp_listener);
     return 0;
 }

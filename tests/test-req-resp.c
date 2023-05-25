@@ -12,6 +12,7 @@
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <cio-stream.h>
 #include "srrp.h"
 #include "srrp-router.h"
 #include "srrp-connect.h"
@@ -78,7 +79,7 @@ static void *requester_thread(void *args)
     struct cio_stream *stream = cio_stream_connect(UNIX_ADDR);
     assert_true(stream);
 
-    struct srrp_connect *conn = srrpc_new(stream, 1, "3333");
+    struct srrp_connect *conn = srrpc_new(stream, "3333");
 
     struct srrp_packet *pac = srrp_new_request("3333", "8888", "/hello", PAYLOAD);
     int rc = srrpc_send(conn, pac);
@@ -88,6 +89,8 @@ static void *requester_thread(void *args)
     for (;;) {
         if (requester_finished)
             break;
+
+        assert_false(srrpc_check_fin(conn));
 
         if (srrpc_wait(conn, 100 * 1000) == 0)
             continue;
@@ -106,6 +109,7 @@ static void *requester_thread(void *args)
     sleep(1);
 
     srrpc_drop(conn);
+    cio_stream_drop(stream);
     LOG_INFO("requester exit");
     return NULL;
 }
@@ -122,11 +126,17 @@ static void *responser_thread(void *args)
     assert_true(listener);
 
     struct srrp_router *router = srrpr_new();
-    srrpr_add_listener(router, listener, 1, "8888");
+    srrpr_add_listener(router, listener, "8888");
 
     for (;;) {
         if (responser_finished && requester_finished)
             break;
+
+        for (;;) {
+            struct cio_stream *stream = srrpr_check_fin(router);
+            if (!stream) break;
+            cio_stream_drop(stream);
+        }
 
         if (srrpr_wait(router, 100 * 1000) == 0)
             continue;
@@ -156,6 +166,7 @@ static void *responser_thread(void *args)
     sleep(1);
 
     srrpr_drop(router);
+    cio_listener_drop(listener);
     LOG_INFO("responser exit");
     return NULL;
 }

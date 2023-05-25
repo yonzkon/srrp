@@ -1,5 +1,5 @@
 use std::sync::Mutex;
-use log::{debug};
+use log::{info, debug};
 use clap::Parser;
 
 static EXIT_FLAG: Mutex<i32> = Mutex::new(0);
@@ -62,6 +62,14 @@ fn main() {
     loop {
         if *EXIT_FLAG.lock().unwrap() == 1 {
             break;
+        }
+
+        while let Some(stream) = router.check_fin() {
+            info!("close socket #{}", stream.getfd());
+        }
+
+        while let Some(stream) = router.check_accept() {
+            info!("accept socket #{}", stream.getfd());
         }
 
         if router.wait(10 * 1000) == 0 {
