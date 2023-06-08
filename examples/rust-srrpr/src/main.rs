@@ -40,17 +40,19 @@ fn main() {
     // logger init
     simple_logger::SimpleLogger::new().env().init().unwrap();
 
+    // srrp init
+    let mut router = srrp::SrrpRouter::new().unwrap();
+
     // unix_server init
-    let unix_server = cio::CioListener::bind(&args.unix_addr)
-        .expect("listen unix socket failed");
+    if cfg!(unix) {
+        let unix_server = cio::CioListener::bind(&args.unix_addr)
+            .expect("listen unix socket failed");
+        router.add_listener(unix_server, "router-unix");
+    }
 
     // tcp_server init
     let tcp_server = cio::CioListener::bind(&args.tcp_addr)
         .expect("listen tcp socket failed");
-
-    // srrp init
-    let mut router = srrp::SrrpRouter::new().unwrap();
-    router.add_listener(unix_server, "router-unix");
     router.add_listener(tcp_server, "router-tcp");
 
     // signal

@@ -7,6 +7,10 @@ fn main() {
     println!("cargo:rustc-link-lib=static=srrp");
     println!("cargo:rerun-if-changed=wrapper.h");
 
+    if cfg!(windows) {
+        println!("cargo:rustc-link-lib=regex");
+    }
+
     std::process::Command::new("git")
         .arg("clone")
         .arg("https://github.com/yonzkon/cio.git")
