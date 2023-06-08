@@ -1,7 +1,7 @@
-include_directories(./)
+include_directories(../src)
 
 add_executable(srrpr srrpr.c opt.c)
-target_link_libraries(srrpr srrp cio)
+target_link_libraries(srrpr srrp)
 
 install(TARGETS srrpr
     RUNTIME DESTINATION bin
