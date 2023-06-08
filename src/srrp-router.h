@@ -1,7 +1,6 @@
 #ifndef __SRRP_ROUTER_H
 #define __SRRP_ROUTER_H
 
-#include <cio-stream.h>
 #include "srrp.h"
 #include "srrp-types.h"
 
@@ -9,6 +8,8 @@
 extern "C" {
 #endif
 
+struct cio_listener;
+struct cio_stream;
 struct srrp_router;
 
 struct srrp_router *srrpr_new();

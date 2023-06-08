@@ -7,9 +7,15 @@ fn main() {
     println!("cargo:rustc-link-lib=static=srrp");
     println!("cargo:rerun-if-changed=wrapper.h");
 
+    std::process::Command::new("git")
+        .arg("clone")
+        .arg("https://github.com/yonzkon/cio.git")
+        .output()
+        .expect("failed to clone cio");
+
     let mut cc_builder = cc::Build::new();
     add_c_files(&mut cc_builder, "../src");
-    cc_builder.compile("srrp");
+    cc_builder.include("cio/src").compile("srrp");
 
     let bindings = bindgen::Builder::default()
         .header("wrapper.h")

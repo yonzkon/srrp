@@ -1,7 +1,6 @@
 #ifndef __SRRP_CONNECT_H
 #define __SRRP_CONNECT_H
 
-#include <cio-stream.h>
 #include "srrp.h"
 #include "srrp-types.h"
 
@@ -9,6 +8,7 @@
 extern "C" {
 #endif
 
+struct cio_stream;
 struct srrp_connect;
 
 struct srrp_connect *srrpc_new(struct cio_stream *stream, const char *nodeid);
