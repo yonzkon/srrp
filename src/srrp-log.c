@@ -78,7 +78,7 @@ static int __log_message(int level, const char *format, va_list ap)
     struct timeval tmnow;
     char buf[32] = {0}, usec_buf[16] = {0};
     gettimeofday(&tmnow, NULL);
-    strftime(buf, 30, "%Y-%m-%d %H:%M:%S", localtime(&tmnow.tv_sec));
+    strftime(buf, 30, "%Y-%m-%d %H:%M:%S", localtime((time_t *)&tmnow.tv_sec));
     sprintf(usec_buf, ".%04d", (int)tmnow.tv_usec / 100);
     strcat(buf, usec_buf);
 
