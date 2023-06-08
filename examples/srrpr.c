@@ -8,6 +8,7 @@
 #include <signal.h>
 
 #include <cio-stream.h>
+#include <srrp-packet.h>
 #include <srrp-router.h>
 #include <srrp-log.h>
 #include "opt.h"

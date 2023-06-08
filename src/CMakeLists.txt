@@ -1,5 +1,5 @@
 file(GLOB SRC *.c)
-file(GLOB INC srrp.h srrp-types.h srrp-router.h srrp-connect.h srrp-log.h)
+file(GLOB INC srrp-types.h srrp-packet.h srrp-router.h srrp-connect.h srrp-log.h)
 
 if (BUILD_STATIC)
     add_library(srrp-static STATIC ${SRC} ${SRC_POSIX})

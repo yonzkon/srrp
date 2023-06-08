@@ -1,10 +1,10 @@
-#include "srrp-log.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
 #include <time.h>
 #include <sys/time.h>
+#include "srrp-log.h"
 
 #if defined(__unix__) || defined(__APPLE__)
 #define CL_RESET "\033[0;0m"

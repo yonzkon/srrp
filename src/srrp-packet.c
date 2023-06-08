@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "srrp.h"
+#include "srrp-packet.h"
 #include "crc16.h"
 #include "str.h"
 #include "vec.h"

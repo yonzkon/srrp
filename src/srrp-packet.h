@@ -1,5 +1,5 @@
-#ifndef __SRRP_H // simple request response protocol
-#define __SRRP_H
+#ifndef __SRRP_PACKET_H // simple request response protocol
+#define __SRRP_PACKET_H
 
 #include <string.h>
 #include "srrp-types.h"
