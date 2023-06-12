@@ -12,7 +12,7 @@
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <cio-stream.h>
+#include <cio/cio-stream.h>
 #include "srrp-packet.h"
 #include "srrp-router.h"
 #include "srrp-connect.h"

@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <signal.h>
 
-#include <cio-stream.h>
+#include <cio/cio-stream.h>
 #include <srrp-packet.h>
 #include <srrp-router.h>
 #include <srrp-log.h>

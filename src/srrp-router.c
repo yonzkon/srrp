@@ -6,8 +6,8 @@
 #include <stdio.h>
 #include <time.h>
 #include <regex.h>
-#include <cio.h>
-#include <cio-stream.h>
+#include <cio/cio.h>
+#include <cio/cio-stream.h>
 
 #include "srrp-packet.h"
 #include "srrp-router.h"

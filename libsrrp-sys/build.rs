@@ -14,12 +14,27 @@ fn main() {
     std::process::Command::new("git")
         .arg("clone")
         .arg("https://github.com/yonzkon/cio.git")
+        .arg("cio.git")
+        .output()
+        .expect("failed to clone cio");
+
+    std::process::Command::new("mkdir")
+        .arg("-p")
+        .arg("cio")
+        .output()
+        .expect("failed to clone cio");
+
+    std::process::Command::new("cp")
+        .arg("-a")
+        .arg("cio.git/src/cio.h")
+        .arg("cio.git/src/cio-stream.h")
+        .arg("cio/")
         .output()
         .expect("failed to clone cio");
 
     let mut cc_builder = cc::Build::new();
     add_c_files(&mut cc_builder, "../src");
-    cc_builder.include("cio/src").compile("srrp");
+    cc_builder.include("./").compile("srrp");
 
     let bindings = bindgen::Builder::default()
         .header("wrapper.h")
