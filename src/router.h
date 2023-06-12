@@ -1,7 +1,7 @@
 #ifndef __SRRP_ROUTER_H
 #define __SRRP_ROUTER_H
 
-#include "srrp-types.h"
+#include "types.h"
 
 #ifdef __cplusplus
 extern "C" {

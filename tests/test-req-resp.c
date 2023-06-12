@@ -13,10 +13,10 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <cio/cio-stream.h>
-#include "srrp-packet.h"
-#include "srrp-router.h"
-#include "srrp-connect.h"
-#include "srrp-log.h"
+#include "packet.h"
+#include "router.h"
+#include "connect.h"
+#include "log.h"
 #include "crc16.h"
 
 #define UNIX_ADDR "unix://./test_unix"

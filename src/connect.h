@@ -1,7 +1,7 @@
 #ifndef __SRRP_CONNECT_H
 #define __SRRP_CONNECT_H
 
-#include "srrp-types.h"
+#include "types.h"
 
 #ifdef __cplusplus
 extern "C" {

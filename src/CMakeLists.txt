@@ -1,5 +1,5 @@
 file(GLOB SRC *.c)
-file(GLOB INC srrp-types.h srrp-packet.h srrp-router.h srrp-connect.h srrp-log.h)
+file(GLOB INC types.h packet.h router.h connect.h log.h)
 
 if (BUILD_STATIC)
     add_library(srrp-static STATIC ${SRC} ${SRC_POSIX})
@@ -23,5 +23,5 @@ install(TARGETS ${TARGET_STATIC} ${TARGET_SHARED}
     RUNTIME DESTINATION bin
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
-    PUBLIC_HEADER DESTINATION include
+    PUBLIC_HEADER DESTINATION include/srrp
 )

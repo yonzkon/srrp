@@ -5,7 +5,7 @@
 #include <cmocka.h>
 #include <stdlib.h>
 #include <string.h>
-#include "srrp-packet.h"
+#include "packet.h"
 #include "crc16.h"
 
 static void test_srrp_base(void **status)

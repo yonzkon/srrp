@@ -8,9 +8,9 @@
 #include <signal.h>
 
 #include <cio/cio-stream.h>
-#include <srrp-packet.h>
-#include <srrp-router.h>
-#include <srrp-log.h>
+#include "packet.h"
+#include "router.h"
+#include "log.h"
 #include "opt.h"
 
 static int exit_flag;
