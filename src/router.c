@@ -267,6 +267,9 @@ static void srrp_stream_parse_packet(struct srrp_stream *ss)
 static void srrp_stream_send(
     struct srrp_stream *ss, const struct srrp_packet *pac)
 {
+    assert(ss->state != SRRP_STREAM_ST_FINISHED);
+    assert(ss->state != SRRP_STREAM_ST_DROP);
+
     u32 idx = 0;
     struct srrp_packet *tmp_pac = NULL;
 
@@ -538,7 +541,8 @@ static void forward_request_or_response(struct message *msg)
     LOG_TRACE("[%p:forward_rr_r] dstid:%s, dst:%p",
               msg->stream->router, srrp_get_dstid(msg->pac), dst);
     if (dst) {
-        srrp_stream_send(dst, msg->pac);
+        if (dst->state != SRRP_STREAM_ST_FINISHED && dst->state != SRRP_STREAM_ST_DROP)
+            srrp_stream_send(dst, msg->pac);
         message_finish(msg);
         return;
     }
@@ -718,7 +722,8 @@ static void srrpr_poll(struct srrp_router *router, u64 usec)
                         gettimeofday(&ss->ts_recv, NULL);
                     }
                 }
-                if (cioe_is_writable(ev)) {
+                if (ss->state != SRRP_STREAM_ST_FINISHED && cioe_is_writable(ev)) {
+                    assert(ss->state != SRRP_STREAM_ST_DROP);
                     if (vsize(ss->txbuf)) {
                         int nr = cio_stream_send(
                             ss->stream, vraw(ss->txbuf), vsize(ss->txbuf));
